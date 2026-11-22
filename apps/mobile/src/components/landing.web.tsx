@@ -6,12 +6,16 @@
 //   /install        how to get it on an iPhone (QR code on laptops)
 // Sign-in lives at /sign-in, /sign-up and /forgot-password (src/app/(site)).
 // Plain DOM + a CSS module so the pages can use real CSS (grid, sticky, keyframes, media queries).
+// The look is the app's "Matka" design system (docs/DESIGN.md), re-drawn in CSS: peach-cream page,
+// sticker cards (2px outline + hard offset shadow), clay hero, the cream wave band, pixel type for numbers.
+// Everything renders statically (expo export pre-renders it): no window/document access during render.
 
 import { router, type Href } from 'expo-router';
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from 'react';
 
 import { APP_NAME, WORDMARK } from '@/lib/app';
 
+import { LandingPot } from './landing-pot';
 import styles from './landing.module.css';
 
 /* ---------------- routes ---------------- */
@@ -37,15 +41,13 @@ function SiteLink({ href, className, children, label }: { href: Href & string; c
   );
 }
 
-/** Nav, sky and footer shared by every public page. */
+/** Nav and footer shared by every public page. */
 function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<HTMLDivElement | null> }) {
   return (
     <div className={styles.page} ref={pageRef}>
-      <Sky />
-
       <nav className={styles.nav} aria-label={APP_NAME}>
         <SiteLink className={styles.navBrand} href="/" label={`${APP_NAME} home`}>
-          <Mascot size={30} eager />
+          <Mascot size={34} eager />
           <Logotype />
         </SiteLink>
         <div className={styles.navLinks}>
@@ -63,12 +65,21 @@ function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<
       {children}
 
       <footer className={styles.footer}>
-        <Mascot size={96} />
-        <p className={styles.footerMark}>
-          <Logotype />
-        </p>
-        <GetIt />
-        <p className={styles.footerLinks}>
+        <Band className={styles.footerBand} waves={24} />
+        <div className={styles.footerInner}>
+          <div className={styles.footerBrand}>
+            <Mascot size={120} className={styles.footerMascot} />
+            <div>
+              <p className={styles.footerMark}>
+                <Logotype />
+              </p>
+              <p className={styles.footerLine}>Every rupee, sorted on its own. Free for iPhone.</p>
+            </div>
+          </div>
+          <GetIt onClay />
+        </div>
+        <Band className={styles.footerBand} waves={24} dots={false} />
+        <div className={styles.footerLinks}>
           {NAV.map((n) => (
             <SiteLink key={n.href} href={n.href}>
               {n.label}
@@ -76,7 +87,7 @@ function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<
           ))}
           <SiteLink href="/install">Install</SiteLink>
           <SiteLink href="/sign-in">Sign in</SiteLink>
-        </p>
+        </div>
       </footer>
     </div>
   );
@@ -86,8 +97,25 @@ function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<
 function Next({ href, label }: { href: Href & string; label: string }) {
   return (
     <p className={styles.next}>
-      <SiteLink href={href}>{label} →</SiteLink>
+      <SiteLink href={href} className={styles.nextLink}>
+        {label} <span aria-hidden>→</span>
+      </SiteLink>
     </p>
+  );
+}
+
+/** Title block for the subpages: a big pixel headline and one line under it. */
+function PageHead({ id, title, lede, side }: { id: string; title: string; lede: string; side?: ReactNode }) {
+  return (
+    <header className={styles.pageHead}>
+      <div>
+        <h1 id={id} className={styles.pageTitle}>
+          {title}
+        </h1>
+        <p className={styles.pageLede}>{lede}</p>
+      </div>
+      {side ? <div className={styles.pageSide}>{side}</div> : null}
+    </header>
   );
 }
 
@@ -98,19 +126,18 @@ export function Landing() {
   return (
     <Site>
       <header className={styles.hero}>
-        <div className={styles.spotlight} aria-hidden />
-        <p className={styles.badge}>
-          <span className={styles.badgeDot} aria-hidden />
-          <span className={styles.shiny}>
-            New <span className={styles.badgeSoft}>· free for iPhone</span>
-          </span>
-        </p>
-        <h1 className={styles.h1}>Every rupee, sorted on its own.</h1>
-        <p className={styles.lede}>
-          Pay with GPay, PhonePe or a card. Your bank texts you, and Gullak turns that SMS into a sorted, totalled
-          expense a few seconds later. Nothing to type.
-        </p>
-        <GetIt />
+        <div className={styles.heroText}>
+          <p className={styles.badge}>
+            <span className={styles.badgeDot} aria-hidden />
+            Free for iPhone · no App Store needed
+          </p>
+          <h1 className={styles.h1}>Every rupee, sorted on its own.</h1>
+          <p className={styles.lede}>
+            Pay with GPay, PhonePe or a card. Your bank texts you, and Gullak turns that SMS into a sorted, totalled
+            expense a few seconds later. Nothing to type.
+          </p>
+          <GetIt />
+        </div>
         <HeroPhone />
       </header>
 
@@ -121,37 +148,76 @@ export function Landing() {
           <Marquee items={APPS} reverse />
         </section>
 
-        <section className={styles.intro} aria-label="What Gullak does">
-          <p className={styles.kicker}>Intro</p>
-          <RevealText
-            parts={[
-              { text: 'Gullak reads the ' },
-              { text: 'SMS your bank already sends,', em: true },
-              { text: ' files every payment under the right ' },
-              { text: 'category,', em: true },
-              { text: ' and shows you ' },
-              { text: 'where your month went.', em: true },
-              { text: ' No bank login, no forms, no end-of-month guesswork.' },
-            ]}
-          />
+        <section className={styles.intro} aria-labelledby="intro-title">
+          <h2 id="intro-title" className={styles.h2}>
+            Your bank already writes it down
+          </h2>
+          <p className={styles.introText}>
+            Gullak reads the SMS your bank already sends, files every payment under the right category, and shows you
+            where your month went. No bank login, no forms, no end-of-month guesswork.
+          </p>
+          <div className={styles.transform}>
+            <figure className={styles.tfSms}>
+              <figcaption className={styles.tfCap}>The SMS from your bank</figcaption>
+              <p className={styles.tfBubble}>
+                Sent <b>Rs.250.00</b> From HDFC Bank A/C *1234 To <b>SWIGGY</b> On 22/11/26 Ref 528461234567
+              </p>
+            </figure>
+            <PixelArrow className={styles.tfArrow} />
+            <figure className={styles.tfOut}>
+              <figcaption className={styles.tfCap}>What lands in Gullak</figcaption>
+              <div className={styles.txnCard}>
+                <span className={styles.txnEmoji} aria-hidden>
+                  🍔
+                </span>
+                <span className={styles.txnBody}>
+                  <span className={styles.txnName}>Swiggy</span>
+                  <span className={styles.txnMeta}>Food · HDFC Bank •1234</span>
+                </span>
+                <span className={styles.txnAmt}>₹250</span>
+              </div>
+            </figure>
+          </div>
         </section>
 
         <section className={styles.note} aria-labelledby="note-title">
-          <p className={styles.kicker}>A note</p>
-          <h2 id="note-title" className={styles.noteTitle}>
-            Why Gullak exists
-          </h2>
-          <div className={styles.noteBody}>
-            <p>
-              Every expense app we tried wanted the same thing: open me, type the amount, pick a category, do it again
-              tomorrow. We never kept it up past the first week.
-            </p>
-            <p>
-              But the bank already tells us about every rupee, the moment it leaves. So Gullak listens to that, sorts it,
-              and only asks when it genuinely can’t tell, like a chai stall’s QR code.
-            </p>
-            <p>Like the clay gullak you fed coins into as a kid: you just drop them in. It keeps count.</p>
-            <p className={styles.noteSign}>Team Gullak</p>
+          <div className={styles.receiptWrap}>
+            <article className={styles.receipt}>
+              <p className={styles.receiptShop} aria-hidden>
+                Gullak · since the first coin
+              </p>
+              <h2 id="note-title" className={styles.receiptTitle}>
+                Why Gullak exists
+              </h2>
+              <hr className={styles.receiptRule} />
+              <p>
+                Every expense app we tried wanted the same thing: open me, type the amount, pick a category, do it again
+                tomorrow. We never kept it up past the first week.
+              </p>
+              <p>
+                But the bank already tells us about every rupee, the moment it leaves. So Gullak listens to that, sorts it,
+                and only asks when it genuinely can’t tell, like a chai stall’s QR code.
+              </p>
+              <p>Like the clay gullak you fed coins into as a kid: you just drop them in. It keeps count.</p>
+              <hr className={styles.receiptRule} />
+              <dl className={styles.receiptLines}>
+                <div>
+                  <dt>Amounts you type</dt>
+                  <dd>0</dd>
+                </div>
+                <div>
+                  <dt>Categories you pick</dt>
+                  <dd>only the unknowns</dd>
+                </div>
+                <div className={styles.receiptTotal}>
+                  <dt>Rupees counted</dt>
+                  <dd>all of them</dd>
+                </div>
+              </dl>
+              <hr className={styles.receiptRule} />
+              <p className={styles.noteSign}>Team Gullak</p>
+              <span className={styles.barcode} aria-hidden />
+            </article>
           </div>
         </section>
         <Next href="/how-it-works" label="See how it works" />
@@ -178,71 +244,115 @@ export function FeaturesPage() {
   return (
     <Site>
       <main className={styles.subpage}>
-        <section className={styles.section} aria-labelledby="features-title">
-          <p className={styles.kicker}>Features</p>
-          <h1 id="features-title" className={styles.h2}>
-            From a bank SMS to a clear month
-          </h1>
-          <div className={styles.bento} onPointerMove={onMagicMove}>
-            <article className={`${styles.tile} ${styles.tileWide}`}>
-              <h3 className={styles.h3}>Reads the SMS, not your bank account</h3>
-              <p className={styles.tileText}>Amount, payee, account and UPI reference, picked straight out of the message.</p>
-              <div className={styles.parse}>
-                <p className={styles.smsText}>
-                  Sent <mark className={styles.mAmount}>Rs.250.00</mark> From HDFC Bank A/C{' '}
-                  <mark className={styles.mAccount}>*1234</mark> To <mark className={styles.mPayee}>SWIGGY</mark> On 22/11/26
-                  Ref <mark className={styles.mRef}>528461234567</mark>
-                </p>
-                <dl className={styles.fields}>
-                  <div>
-                    <dt>Spent</dt>
-                    <dd className={styles.fAmount}>₹250.00</dd>
-                  </div>
-                  <div>
-                    <dt>Paid to</dt>
-                    <dd>Swiggy</dd>
-                  </div>
-                  <div>
-                    <dt>Category</dt>
-                    <dd>
-                      <span className={styles.chip}>🍔 Food</span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>From</dt>
-                    <dd>HDFC Bank •1234</dd>
-                  </div>
-                </dl>
-              </div>
-            </article>
-
-            <article className={styles.tile}>
-              <h3 className={styles.h3}>A QR code isn’t a name</h3>
-              <p className={styles.tileText}>
-                Gullak won’t guess what <code>paytmqr2810…</code> sold you. Pick once; every past and future payment there follows.
+        <PageHead
+          id="features-title"
+          title="From a bank SMS to a clear month"
+          lede="Everything Gullak does starts with a message your bank already sends."
+        />
+        <section className={styles.bento} aria-labelledby="features-title">
+          <article className={`${styles.tile} ${styles.span4}`}>
+            <h2 className={styles.h3}>Reads the SMS, not your bank account</h2>
+            <p className={styles.tileText}>Amount, payee, account and UPI reference, picked straight out of the message.</p>
+            <div className={styles.parse}>
+              <p className={styles.smsText}>
+                Sent <mark className={styles.mAmount}>Rs.250.00</mark> From HDFC Bank A/C{' '}
+                <mark className={styles.mAccount}>*1234</mark> To <mark className={styles.mPayee}>SWIGGY</mark> On 22/11/26
+                Ref <mark className={styles.mRef}>528461234567</mark>
               </p>
-              <div className={styles.chips}>
-                <span className={`${styles.chip} ${styles.chipOn}`}>🍔 Food</span>
-                <span className={styles.chip}>🛒 Groceries</span>
-                <span className={styles.chip}>💊 Health</span>
+              <dl className={styles.fields}>
+                <div data-k="amount">
+                  <dt>Spent</dt>
+                  <dd className={styles.fAmount}>₹250.00</dd>
+                </div>
+                <div data-k="payee">
+                  <dt>Paid to</dt>
+                  <dd>Swiggy</dd>
+                </div>
+                <div data-k="account">
+                  <dt>From</dt>
+                  <dd>HDFC Bank •1234</dd>
+                </div>
+                <div data-k="cat">
+                  <dt>Category</dt>
+                  <dd>🍔 Food</dd>
+                </div>
+              </dl>
+            </div>
+          </article>
+
+          <article className={`${styles.tile} ${styles.span2} ${styles.tileStats}`} aria-label="Gullak in numbers">
+            <Stat value={20} suffix="+" label="Indian banks read" />
+            <Stat value={90} suffix="+" label="merchants recognised" />
+            <Stat value={5} prefix="~" suffix="s" label="from SMS to sorted" />
+          </article>
+
+          <article className={`${styles.tile} ${styles.span3}`}>
+            <h2 className={styles.h3}>A nudge for every payment</h2>
+            <p className={styles.tileText}>
+              A notification lands a few seconds after you pay. And a QR code isn’t a name: Gullak won’t guess what{' '}
+              <code>paytmqr2810…</code> sold you. Pick once; every past and future payment there follows.
+            </p>
+            <div className={styles.notifStack}>
+              <Notif title="₹250 at Swiggy 🍔" body="Food, noted. Gullak is hungry now." actions={['Change category', 'My month']} />
+              <Notif
+                title="₹40 to paytmqr2810… 🤔"
+                body="Who is this? Pick a category once and Gullak never asks again."
+                actions={['Pick category', 'Details']}
+              />
+            </div>
+          </article>
+
+          <article className={`${styles.tile} ${styles.span3}`}>
+            <h2 className={styles.h3}>Ask Gullu</h2>
+            <p className={styles.tileText}>Gullu is the chatbot inside Gullak. Ask about your money in plain words.</p>
+            <div className={styles.chat} aria-label="A sample chat with Gullu" role="group">
+              <p className={styles.chatMe}>How much did I spend on food this month?</p>
+              <div className={styles.chatGullu}>
+                <span className={styles.chatAvatar} aria-hidden>
+                  <Mascot size={28} />
+                </span>
+                <p>
+                  <b>₹4,320</b> on Food so far in November. Swiggy is ₹2,610 of it. 🍔
+                </p>
               </div>
-            </article>
+              <p className={styles.chatMe}>And last month?</p>
+              <div className={styles.chatGullu}>
+                <span className={styles.chatAvatar} aria-hidden>
+                  <Mascot size={28} />
+                </span>
+                <p className={styles.typing} aria-label="Gullu is typing">
+                  <span />
+                  <span />
+                  <span />
+                </p>
+              </div>
+            </div>
+          </article>
 
-            <article className={`${styles.tile} ${styles.tileStats}`}>
-              <Stat value={20} suffix="+" label="Indian banks read" />
-              <Stat value={90} suffix="+" label="merchants recognised" />
-              <Stat value={5} prefix="~" suffix="s" label="from SMS to sorted" />
-            </article>
+          <article className={`${styles.tile} ${styles.span3}`}>
+            <h2 className={styles.h3}>Gullak Jars</h2>
+            <p className={styles.tileText}>Save towards something. The pot fills with coins, and sprouts when it’s full.</p>
+            <JarDemo />
+          </article>
 
-            <article className={styles.tile}>
-              <h3 className={styles.h3}>Your messages stay yours</h3>
-              <ul className={styles.ticks}>
-                <li>Personal chats are dropped before they’re stored.</li>
-                <li>No bank passwords, no account linking.</li>
-                <li>Runs on Gullak’s own server, not an ad network.</li>
-              </ul>
-            </article>
-          </div>
+          <article className={`${styles.tile} ${styles.span3}`}>
+            <h2 className={styles.h3}>Budgets that fill up</h2>
+            <p className={styles.tileText}>Set a limit per category. Each payment adds a block, so you see it coming.</p>
+            <ul className={styles.budgets}>
+              <Budget emoji="🛍️" name="Shopping" note="₹173 over" value={1.06} over />
+              <Budget emoji="🍔" name="Food" note="₹1,525 left" value={0.7} />
+              <Budget emoji="🛒" name="Groceries" note="₹3,222 left" value={0.36} />
+            </ul>
+          </article>
+
+          <article className={`${styles.tile} ${styles.span6} ${styles.tilePrivacy}`}>
+            <h2 className={styles.h3}>Your messages stay yours</h2>
+            <ul className={styles.ticks}>
+              <li>Personal chats are dropped before they’re stored.</li>
+              <li>No bank passwords, no account linking.</li>
+              <li>Runs on Gullak’s own server, not an ad network.</li>
+            </ul>
+          </article>
         </section>
         <Next href="/faq" label="Questions" />
       </main>
@@ -255,33 +365,33 @@ export function FaqPage() {
   return (
     <Site>
       <main className={styles.subpage}>
-        <section className={styles.section} aria-labelledby="faq-title">
-          <p className={styles.kicker}>FAQ</p>
-          <h1 id="faq-title" className={styles.h2}>
-            Your questions, answered
-          </h1>
-          <div className={styles.faq}>
-            <Faq q="Does Gullak read my personal messages?">
-              Your iPhone forwards incoming messages, and Gullak keeps only the ones that look like bank or payment SMS.
-              Everything else is dropped immediately, without being saved.
-            </Faq>
-            <Faq q="Which banks and apps does it work with?">
-              Any UPI app (GPay, PhonePe, Paytm, CRED, BHIM) and cards, because it reads the SMS your bank sends. HDFC, SBI,
-              ICICI, Axis, Kotak, Yes, IDFC FIRST and more are supported. If a message isn’t understood, it’s kept aside so
-              nothing is lost.
-            </Faq>
-            <Faq q="Is it on Android?">
-              Not yet. The iPhone version is first. Android can read bank SMS directly, so it’s next.
-            </Faq>
-            <Faq q="Why isn’t it in the App Store?">
-              Gullak installs straight from Safari: open this site on your iPhone, tap Share, then Add to Home Screen. It
-              updates itself and never expires.
-            </Faq>
-            <Faq q="What about UPI Lite and cash?">
-              UPI Lite payments usually don’t send an SMS, so they can’t be picked up automatically. You can add those by
-              hand.
-            </Faq>
-          </div>
+        <PageHead
+          id="faq-title"
+          title="Your questions, answered"
+          lede="Short answers to what people ask first."
+          side={<Mascot size={140} className={styles.sideMascot} />}
+        />
+        <section className={styles.faq} aria-labelledby="faq-title">
+          <Faq q="Does Gullak read my personal messages?">
+            Your iPhone forwards incoming messages, and Gullak keeps only the ones that look like bank or payment SMS.
+            Everything else is dropped immediately, without being saved.
+          </Faq>
+          <Faq q="Which banks and apps does it work with?">
+            Any UPI app (GPay, PhonePe, Paytm, CRED, BHIM) and cards, because it reads the SMS your bank sends. HDFC, SBI,
+            ICICI, Axis, Kotak, Yes, IDFC FIRST and more are supported. If a message isn’t understood, it’s kept aside so
+            nothing is lost.
+          </Faq>
+          <Faq q="Is it on Android?">
+            Not yet. The iPhone version is first. Android can read bank SMS directly, so it’s next.
+          </Faq>
+          <Faq q="Why isn’t it in the App Store?">
+            Gullak installs straight from Safari: open this site on your iPhone, tap Share, then Add to Home Screen. It
+            updates itself and never expires.
+          </Faq>
+          <Faq q="What about UPI Lite and cash?">
+            UPI Lite payments usually don’t send an SMS, so they can’t be picked up automatically. You can add those by
+            hand.
+          </Faq>
         </section>
         <Next href="/install" label="Get Gullak" />
       </main>
@@ -294,26 +404,25 @@ export function InstallPage() {
   return (
     <Site>
       <main className={styles.subpage}>
-        <section className={styles.section} aria-labelledby="install-title">
-          <p className={styles.kicker}>Install</p>
-          <h1 id="install-title" className={styles.h2}>
-            Add Gullak to your iPhone
-          </h1>
-          <div className={styles.installCard}>
-            <Mascot size={64} eager />
-            <ol className={styles.sheetSteps}>
-              <li>
-                Open this site in <strong>Safari</strong> on your iPhone.
-              </li>
-              <li>
-                Tap <strong>Share</strong> <span aria-hidden>⬆︎</span>, choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
-              </li>
-              <li>
-                Open <strong>Gullak</strong> from your Home Screen and create your account.
-              </li>
-            </ol>
-            <GetIt hideInstall />
-          </div>
+        <PageHead
+          id="install-title"
+          title="Add Gullak to your iPhone"
+          lede="No App Store, no download. It installs from Safari in three taps and updates itself."
+          side={<Mascot size={140} eager className={styles.sideMascot} />}
+        />
+        <section className={styles.installCard} aria-labelledby="install-title">
+          <ol className={styles.steps}>
+            <li>
+              Open this site in <strong>Safari</strong> on your iPhone.
+            </li>
+            <li>
+              Tap <strong>Share</strong> <ShareIcon />, choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
+            </li>
+            <li>
+              Open <strong>Gullak</strong> from your Home Screen and create your account.
+            </li>
+          </ol>
+          <GetIt hideInstall />
         </section>
       </main>
     </Site>
@@ -359,13 +468,65 @@ function Mascot({ size, className, eager }: { size: number; className?: string; 
   );
 }
 
+/** The cream wave with dots from the pot's belly (the app's MatkaBand). Stretches to its box. Decorative. */
+function Band({ className, waves = 7, dots = true }: { className?: string; waves?: number; dots?: boolean }) {
+  const w = waves * 20;
+  let d = 'M0 7';
+  for (let i = 0; i < waves; i++) {
+    const x = i * 20;
+    d += ` Q${x + 5} 1 ${x + 10} 7 Q${x + 15} 13 ${x + 20} 7`;
+  }
+  return (
+    <svg className={className} viewBox={`0 0 ${w} 14`} preserveAspectRatio="none" aria-hidden focusable="false">
+      <path d={d} stroke="currentColor" strokeWidth={2.2} fill="none" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {dots ? Array.from({ length: waves }, (_, i) => <circle key={i} cx={i * 20 + 15} cy={3} r={1.8} fill="currentColor" />) : null}
+    </svg>
+  );
+}
+
+/** The mascot's coin (the app's Coin glyph). */
+function Coin({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 22 22" aria-hidden focusable="false" className={styles.coin}>
+      <circle cx={11} cy={11} r={9.5} fill="#F5A90F" stroke="#1C0F0C" strokeWidth={2} />
+      <circle cx={11} cy={11} r={5.8} fill="none" stroke="#FFE08A" strokeWidth={1.6} />
+      <path
+        d="M8.6 7.6h4.8M8.6 9.6h4.8M10 7.6c2.6 0 2.6 4-0.2 4H8.8l3.6 3.4"
+        stroke="#A8341A"
+        strokeWidth={1.3}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** A chunky pixel arrow: points right on wide screens, down when stacked (rotated in CSS). */
+function PixelArrow({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 12 9" width={48} height={36} aria-hidden focusable="false" shapeRendering="crispEdges">
+      <path d="M0 3h7V0h1v1h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1H8v1H7V6H0z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg className={styles.shareIcon} viewBox="0 0 20 24" width={16} height={19} aria-label="(the square with an arrow)" role="img">
+      <path d="M10 1v14M5 6l5-5 5 5" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 10H3v12h14V10h-3" stroke="currentColor" strokeWidth={2} fill="none" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /**
  * How to get Gullak. Touch screens get "Add to iPhone" (→ /install) + "Sign in" (→ /sign-in); laptops get
  * a QR code and no sign-in. Chosen with CSS (pointer/hover media queries), so the first paint is already right.
  */
-function GetIt({ hideInstall }: { hideInstall?: boolean }) {
+function GetIt({ hideInstall, onClay }: { hideInstall?: boolean; onClay?: boolean }) {
   return (
-    <div className={styles.getIt}>
+    <div className={`${styles.getIt} ${onClay ? styles.getItOnClay : ''}`}>
       <div className={styles.onTouch}>
         {hideInstall ? null : (
           <SiteLink href="/install" className={styles.primary}>
@@ -378,8 +539,9 @@ function GetIt({ hideInstall }: { hideInstall?: boolean }) {
       </div>
       <div className={styles.onDesktop}>
         <div className={styles.qrCard}>
-          <span className={styles.beam} aria-hidden />
-          <img src="/qr.svg" alt="QR code that opens gullak.sparkstudio.co.in" width={112} height={112} />
+          <span className={styles.qrTile}>
+            <img src="/qr.svg" alt="QR code that opens gullak.sparkstudio.co.in" width={104} height={104} />
+          </span>
           <div>
             <p className={styles.qrTitle}>Scan with your iPhone camera</p>
             <p className={styles.qrText}>Gullak opens in Safari. Tap Share, then Add to Home Screen.</p>
@@ -390,6 +552,94 @@ function GetIt({ hideInstall }: { hideInstall?: boolean }) {
   );
 }
 
+/** A lock-screen notification in Gullak's voice (the app's NotifPreview, in CSS). */
+function Notif({ title, body, actions, className }: { title: string; body: string; actions?: string[]; className?: string }) {
+  return (
+    <div className={`${styles.notif} ${className ?? ''}`}>
+      <span className={styles.notifIcon} aria-hidden>
+        <Mascot size={30} eager />
+      </span>
+      <span className={styles.notifBody}>
+        <span className={styles.notifHead}>
+          <span className={styles.notifApp}>Gullak</span>
+          <span className={styles.notifWhen}>· now</span>
+        </span>
+        <span className={styles.notifTitle}>{title}</span>
+        <span className={styles.notifText}>{body}</span>
+      </span>
+      {actions?.length ? (
+        <span className={styles.notifActions}>
+          {actions.map((a, i) => (
+            <span key={a} className={i === 0 ? styles.notifChipOn : styles.notifChip}>
+              {a}
+            </span>
+          ))}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Progress as a row of pixel blocks, like the app's PixelBar. */
+function PixelBar({ value, blocks = 20, tone }: { value: number; blocks?: number; tone?: 'over' | 'gold' }) {
+  const v = Math.max(0, value);
+  const lit = v > 0 ? Math.max(1, Math.min(blocks, Math.round(v * blocks))) : 0;
+  return (
+    <span className={`${styles.pixelBar} ${tone === 'over' ? styles.pixelBarOver : tone === 'gold' ? styles.pixelBarGold : ''}`} aria-hidden>
+      {Array.from({ length: blocks }, (_, i) => (
+        <span key={i} data-on={i < lit || undefined} />
+      ))}
+    </span>
+  );
+}
+
+function Budget({ emoji, name, note, value, over }: { emoji: string; name: string; note: string; value: number; over?: boolean }) {
+  return (
+    <li className={styles.budget}>
+      <span className={styles.budgetTile} aria-hidden>
+        {emoji}
+      </span>
+      <span className={styles.budgetBody}>
+        <span className={styles.budgetTop}>
+          <span className={styles.budgetName}>{name}</span>
+          <span className={over ? styles.budgetOver : styles.budgetLeft}>
+            {over ? '▲ ' : ''}
+            {note}
+          </span>
+        </span>
+        <PixelBar value={value} tone={over ? 'over' : undefined} />
+      </span>
+    </li>
+  );
+}
+
+/** A Jar that fills with coins once it scrolls into view. */
+function JarDemo() {
+  const [ref, seen] = useSeen<HTMLDivElement>(0.5);
+  const reduce = useReducedMotion();
+  const [filling, setFilling] = useState(0.2);
+  const target = 0.62;
+  useEffect(() => {
+    if (!seen || reduce) return;
+    const id = setInterval(() => setFilling((x) => (x >= target ? x : Math.min(target, x + 0.06))), 110);
+    return () => clearInterval(id);
+  }, [seen, reduce]);
+  const p = seen && reduce ? target : filling;
+  const saved = Math.round((20000 * p) / 100) * 100;
+  return (
+    <div className={styles.jar} ref={ref}>
+      <LandingPot progress={p} size={104} className={styles.jarPot} />
+      <div className={styles.jarBody}>
+        <p className={styles.jarName}>🏖️ Goa trip</p>
+        <p className={styles.jarAmount}>
+          ₹{inr.format(saved)} <span className={styles.jarOf}>of ₹20,000</span>
+        </p>
+        <PixelBar value={p} blocks={16} tone="gold" />
+        <p className={styles.jarHint}>{Math.round(p * 100)}% full. Keep feeding it.</p>
+      </div>
+    </div>
+  );
+}
 
 function Stat({ value, prefix, suffix, label }: { value: number; prefix?: string; suffix?: string; label: string }) {
   const [ref, seen] = useSeen<HTMLDivElement>();
@@ -406,36 +656,16 @@ function Stat({ value, prefix, suffix, label }: { value: number; prefix?: string
 function Faq({ q, children }: { q: string; children: ReactNode }) {
   return (
     <details className={styles.faqItem}>
-      <summary>{q}</summary>
+      <summary>
+        <span>{q}</span>
+        <span className={styles.faqMark} aria-hidden />
+      </summary>
       <p>{children}</p>
     </details>
   );
 }
 
-/** Soft pixel clouds, drawn as SVG rects to match the mascot's pixel art. Decorative. */
-function Sky() {
-  return (
-    <div className={styles.sky} aria-hidden>
-      <PixelCloud className={styles.cloudA} />
-      <PixelCloud className={styles.cloudB} />
-      <PixelCloud className={styles.cloudC} />
-    </div>
-  );
-}
-
-function PixelCloud({ className }: { className: string }) {
-  // 16×7 grid: 1 = cloud, drawn as 10px "pixels".
-  const rows = ['0000011110000000', '0001111111100000', '0011111111111100', '0111111111111110', '1111111111111111', '1111111111111111', '0111111111111110'];
-  return (
-    <svg className={className} viewBox="0 0 160 70" shapeRendering="crispEdges">
-      {rows.flatMap((r, y) =>
-        [...r].map((v, x) => (v === '1' ? <rect key={`${x}-${y}`} x={x * 10} y={y * 10} width={10} height={10} /> : null)),
-      )}
-    </svg>
-  );
-}
-
-/* ---------------- effects (Magic UI / Aceternity patterns, ported to plain CSS) ---------------- */
+/* ---------------- effects ---------------- */
 
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
@@ -461,13 +691,33 @@ function useSeen<T extends Element>(threshold = 0.4) {
   return [ref, seen] as const;
 }
 
-/** Magic UI "Number Ticker": counts from the last value to the new one. */
+/** prefers-reduced-motion, read after mount (false during the static render). */
+const REDUCE = '(prefers-reduced-motion: reduce)';
+function subscribeReduce(on: () => void) {
+  const mq = window.matchMedia(REDUCE);
+  mq.addEventListener('change', on);
+  return () => mq.removeEventListener('change', on);
+}
+function useReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReduce,
+    () => window.matchMedia(REDUCE).matches,
+    () => false,
+  );
+}
+
+/** Counts from the last value to the new one (jumps straight there with reduced motion). */
 function NumberTicker({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) {
   const [shown, setShown] = useState(value);
   const from = useRef(value);
+  const reduce = useReducedMotion();
   useEffect(() => {
     const a = from.current;
     if (a === value) return;
+    if (reduce) {
+      from.current = value;
+      return;
+    }
     const start = performance.now();
     let frame = 0;
     const step = (now: number) => {
@@ -481,17 +731,17 @@ function NumberTicker({ value, prefix = '', suffix = '' }: { value: number; pref
       cancelAnimationFrame(frame);
       from.current = value;
     };
-  }, [value]);
+  }, [value, reduce]);
   return (
     <span className={styles.ticker}>
       {prefix}
-      {inr.format(Math.round(shown))}
+      {inr.format(Math.round(reduce ? value : shown))}
       {suffix}
     </span>
   );
 }
 
-/** Magic UI "Marquee": two copies of the row slide left forever; the copy is hidden from screen readers. */
+/** Two copies of a row of outlined chips slide sideways forever; the copy is hidden from screen readers. */
 function Marquee({ items, reverse }: { items: string[]; reverse?: boolean }) {
   return (
     <div className={`${styles.marquee} ${reverse ? styles.marqueeReverse : ''}`}>
@@ -511,104 +761,84 @@ function Marquee({ items, reverse }: { items: string[]; reverse?: boolean }) {
 const BANKS = ['HDFC Bank', 'SBI', 'ICICI Bank', 'Axis Bank', 'Kotak', 'IDFC FIRST', 'Yes Bank', 'PNB', 'Bank of Baroda', 'Canara Bank', 'Union Bank', 'IndusInd', 'Federal Bank', 'AU Bank', 'RBL Bank'];
 const APPS = ['Google Pay', 'PhonePe', 'Paytm', 'CRED', 'BHIM', 'Amazon Pay', 'Credit cards', 'Debit cards', 'NEFT · IMPS', 'ATM cash', 'Refunds', 'Salary credits'];
 
-/** Magic UI "Text Reveal": words brighten as they scroll into view (CSS scroll-driven animation where supported). */
-function RevealText({ parts }: { parts: { text: string; em?: boolean }[] }) {
-  return (
-    <p className={styles.introText}>
-      {parts.flatMap((part, i) =>
-        part.text
-          .split(/(\s+)/)
-          .map((word, j) =>
-            /^\s+$/.test(word) || !word ? word : (
-              <span key={`${i}-${j}`} className={`${styles.word} ${part.em ? styles.wordEm : ''}`}>
-                {word}
-              </span>
-            ),
-          ),
-      )}
-    </p>
-  );
-}
+/* ---------------- hero phone: payments land one after another, in Gullak's notification voice ---------------- */
 
-/** Magic UI "Magic Card": a soft coin-coloured glow follows the pointer across each tile. */
-function onMagicMove(e: React.PointerEvent<HTMLElement>) {
-  const tile = (e.target as HTMLElement).closest<HTMLElement>(`.${styles.tile}`);
-  if (!tile) return;
-  const r = tile.getBoundingClientRect();
-  tile.style.setProperty('--mx', `${e.clientX - r.left}px`);
-  tile.style.setProperty('--my', `${e.clientY - r.top}px`);
-}
-
-/* ---------------- hero phone: payments land one after another (Magic UI "Animated List") ---------------- */
-
+// Titles and lines follow packages/core/src/push-voice.ts (paymentPush).
 const FEED = [
-  { icon: '🍔', who: 'Swiggy', cat: 'Food', amt: 250, from: 'HDFC Bank •1234' },
-  { icon: '🚕', who: 'Uber', cat: 'Transport', amt: 186, from: 'ICICI Card •4402' },
-  { icon: '🛒', who: 'Zepto', cat: 'Groceries', amt: 374, from: 'HDFC Bank •1234' },
-  { icon: '☕', who: 'Chai Point', cat: 'Food', amt: 40, from: 'SBI •0921' },
-  { icon: '💊', who: 'Apollo Pharmacy', cat: 'Health', amt: 512, from: 'HDFC Bank •1234' },
-  { icon: '📈', who: 'Groww SIP', cat: 'Investments', amt: 2000, from: 'Axis Bank •7781' },
+  { emoji: '🍔', who: 'Swiggy', cat: 'Food', amt: 250, line: 'Food, noted. Gullak is hungry now.' },
+  { emoji: '🛺', who: 'Uber', cat: 'Transport', amt: 186, line: 'Filed under Transport. Safe ride!' },
+  { emoji: '🛒', who: 'Zepto', cat: 'Groceries', amt: 374, line: 'Filed under Groceries. Fridge: restocked.' },
+  { emoji: '🍔', who: 'Chai Point', cat: 'Food', amt: 40, line: 'Into the Food jar. Chai counts too.' },
+  { emoji: '💊', who: 'Apollo Pharmacy', cat: 'Health', amt: 512, line: 'Filed under Health. Get well soon.' },
+  { emoji: '📈', who: 'Groww SIP', cat: 'Investments', amt: 2000, line: 'Filed under Investments. Future you says thanks.' },
 ];
 const START_TOTAL = 18430;
 
 function HeroPhone() {
-  const [count, setCount] = useState(1);
+  const [ticks, setCount] = useState(1);
+  const reduce = useReducedMotion();
+  const count = reduce ? 3 : ticks;
   useEffect(() => {
-    const id = setInterval(() => setCount((c) => (c >= FEED.length ? 1 : c + 1)), 2400);
+    if (reduce) return;
+    const id = setInterval(() => setCount((c) => (c >= FEED.length ? 1 : c + 1)), 2600);
     return () => clearInterval(id);
-  }, []);
+  }, [reduce]);
   const landed = FEED.slice(0, count);
   const total = START_TOTAL + landed.reduce((sum, f) => sum + f.amt, 0);
   const latest = landed[landed.length - 1];
 
   return (
-    <div className={styles.heroPhoneWrap}>
-      <div className={styles.perch} aria-hidden>
-        <Mascot size={84} eager />
+    <div className={styles.stage}>
+      <div
+        className={styles.phone}
+        role="img"
+        aria-label="A phone's lock screen: Gullak notifications arrive one after another, each payment already sorted, and the month's total goes up">
+        <div className={styles.screen}>
+          <span className={styles.island} />
+          <div className={styles.lockTop}>
+            <span className={styles.lockDate}>Sunday 22 November</span>
+            <span className={styles.clock}>9:41</span>
+          </div>
+          <ol className={styles.feed}>
+            {[...landed]
+              .reverse()
+              .slice(0, 3)
+              .map((f, i) => (
+                <li key={f.who} className={styles.feedItem}>
+                  <Notif
+                    title={`₹${inr.format(f.amt)} at ${f.who} ${f.emoji}`}
+                    body={f.line}
+                    actions={i === 0 ? ['Change category', 'My month'] : undefined}
+                  />
+                </li>
+              ))}
+          </ol>
+          <div className={styles.potCard}>
+            <span className={styles.potTop}>
+              <span>Spent in November</span>
+              <Coin size={24} />
+            </span>
+            <span className={styles.potAmount}>
+              <NumberTicker value={total} prefix="₹" />
+            </span>
+            <Band className={styles.potBand} waves={8} />
+            <span className={styles.potFoot}>
+              <span className={styles.potPill} key={latest.who}>
+                +₹{inr.format(latest.amt)}
+              </span>
+              <span>{latest.cat}, just now</span>
+            </span>
+          </div>
+        </div>
       </div>
-      <div className={styles.phone} role="img" aria-label="Payments arrive in Gullak one after another, already sorted, and the month's total goes up">
-        <div className={styles.island} />
-        <div className={styles.phoneTop}>
-          <span className={styles.clock}>9:41</span>
-          <span className={styles.date}>Saturday 22 November</span>
-        </div>
-        <ol className={styles.feed}>
-          {[...landed]
-            .reverse()
-            .slice(0, 4)
-            .map((f) => (
-              <li key={f.who} className={styles.notif}>
-                <span className={styles.notifIcon}>
-                  <Mascot size={26} eager />
-                </span>
-                <span className={styles.notifBody}>
-                  <span className={styles.notifHead}>
-                    <span className={styles.notifApp}>GULLAK</span>
-                    <span className={styles.notifWhen}>now</span>
-                  </span>
-                  <span className={styles.notifTitle}>
-                    −₹{inr.format(f.amt)} · {f.who}
-                  </span>
-                  <span className={styles.notifText}>
-                    {f.icon} {f.cat} · {f.from}
-                  </span>
-                </span>
-              </li>
-            ))}
-        </ol>
-        <div className={styles.monthCard}>
-          <span className={styles.monthLabel}>Spent this month</span>
-          <NumberTicker value={total} prefix="₹" />
-          <span className={styles.monthLast} key={latest.who}>
-            +₹{inr.format(latest.amt)} {latest.cat.toLowerCase()}
-          </span>
-        </div>
+      <div className={styles.heroMascot} aria-hidden>
+        <Mascot size={220} eager />
       </div>
     </div>
   );
 }
 
-/* ---------------- story: sticky phone that changes with the step in view ---------------- */
+/* ---------------- story: sticky screen that changes with the step in view ---------------- */
 
 const STEPS = [
   { title: 'You pay', text: 'GPay, PhonePe, a card, anything. Your bank sends its usual SMS a moment later.' },
@@ -662,12 +892,11 @@ function Story({ root }: { root: RefObject<HTMLDivElement | null> }) {
 
   return (
     <section className={styles.story} aria-labelledby="how-title">
-      <div className={styles.storyHead}>
-        <p className={styles.kicker}>How it works</p>
-        <h1 id="how-title" className={styles.h2}>
-          Set it up once. Then forget it.
-        </h1>
-      </div>
+      <PageHead
+        id="how-title"
+        title="Set it up once. Then forget it."
+        lede="Three things happen every time you pay. You only ever do the first one."
+      />
       <div className={styles.storyGrid}>
         <ol className={styles.storySteps}>
           {STEPS.map((s, i) => (
@@ -678,8 +907,13 @@ function Story({ root }: { root: RefObject<HTMLDivElement | null> }) {
               }}
               data-step={i}
               className={`${styles.storyStep} ${i === active ? styles.storyStepOn : ''}`}>
-              <span className={styles.storyNum}>0{i + 1}</span>
-              <h3 className={styles.storyTitle}>{s.title}</h3>
+              <span className={styles.storyNum} aria-hidden>
+                {i + 1}
+              </span>
+              <h2 className={styles.storyTitle}>
+                <span className={styles.srOnly}>Step {i + 1}: </span>
+                {s.title}
+              </h2>
               <p className={styles.storyText}>{s.text}</p>
               <div className={styles.storyInline}>
                 <StoryScreen step={i} />
@@ -688,9 +922,16 @@ function Story({ root }: { root: RefObject<HTMLDivElement | null> }) {
           ))}
         </ol>
         <div className={styles.storySticky} aria-hidden>
-          <div className={styles.revealCard} data-step={active}>
+          <div className={styles.revealCard}>
+            <div className={styles.revealTabs}>
+              {STEPS.map((s, i) => (
+                <span key={s.title} className={i === active ? styles.revealTabOn : styles.revealTab}>
+                  {i + 1}
+                </span>
+              ))}
+            </div>
             {STEPS.map((s, i) => (
-              <div key={s.title} className={`${styles.screen} ${i === active ? styles.screenOn : ''}`}>
+              <div key={s.title} className={`${styles.scrSlot} ${i === active ? styles.scrSlotOn : ''}`}>
                 <StoryScreen step={i} />
               </div>
             ))}
@@ -700,7 +941,6 @@ function Story({ root }: { root: RefObject<HTMLDivElement | null> }) {
     </section>
   );
 }
-
 
 /** What the reveal card shows for each step: the SMS, the automation, the sorted result. */
 function StoryScreen({ step }: { step: number }) {
@@ -726,14 +966,17 @@ function StoryScreen({ step }: { step: number }) {
     return (
       <div className={styles.scr}>
         <p className={styles.scrApp}>
-          <span className={styles.scrAvatar} data-kind="shortcut">⌘</span> Shortcuts <span className={styles.scrMuted}>· Automation</span>
+          <span className={styles.scrAvatar} data-kind="shortcut">
+            ⌘
+          </span>{' '}
+          Shortcuts <span className={styles.scrMuted}>· Automation</span>
         </p>
         <div className={styles.flowCard}>
           <span className={styles.flowLabel}>When</span>
           <span className={styles.flowTitle}>A message arrives</span>
           <span className={styles.flowSub}>Run Immediately · no notification</span>
         </div>
-        <span className={styles.flowArrow} aria-hidden />
+        <PixelArrow className={styles.flowArrow} />
         <div className={styles.flowCard}>
           <span className={styles.flowLabel}>Do</span>
           <span className={styles.flowTitle}>Send it to Gullak</span>
@@ -745,28 +988,25 @@ function StoryScreen({ step }: { step: number }) {
   }
   return (
     <div className={styles.scr}>
-      <p className={styles.scrApp}>
-        <span className={styles.scrAvatar} data-kind="gullak">
-          <Mascot size={22} />
-        </span>
-        Gullak <span className={styles.scrMuted}>· Activity</span>
-      </p>
+      <Notif title="₹250 at Swiggy 🍔" body="Food, noted. Gullak is hungry now." />
       <p className={styles.scrTime}>Today · ₹664 spent</p>
-      {[
-        { e: '🍔', name: 'Swiggy', cat: 'Food', amt: '−₹250' },
-        { e: '🛒', name: 'Zepto', cat: 'Groceries', amt: '−₹374' },
-        { e: '📦', name: 'paytmqr2810…', cat: 'Tap to pick a category', amt: '−₹40', warn: true },
-      ].map((r) => (
-        <div key={r.name} className={styles.row}>
-          <span className={styles.rowEmoji}>{r.e}</span>
-          <span className={styles.rowBody}>
-            <span className={styles.rowName}>{r.name}</span>
-            <span className={r.warn ? styles.rowWarn : styles.rowCat}>{r.cat}</span>
-          </span>
-          <span className={styles.rowAmt}>{r.amt}</span>
-        </div>
-      ))}
-      <div className={styles.bars} aria-hidden>
+      <div className={styles.rows}>
+        {[
+          { e: '🍔', name: 'Swiggy', cat: 'Food', amt: '₹250' },
+          { e: '🛒', name: 'Zepto', cat: 'Groceries', amt: '₹374' },
+          { e: '🤔', name: 'paytmqr2810…', cat: 'Tap to pick a category', amt: '₹40', warn: true },
+        ].map((r) => (
+          <div key={r.name} className={styles.row}>
+            <span className={styles.rowEmoji}>{r.e}</span>
+            <span className={styles.rowBody}>
+              <span className={styles.rowName}>{r.name}</span>
+              <span className={r.warn ? styles.rowWarn : styles.rowCat}>{r.cat}</span>
+            </span>
+            <span className={styles.rowAmt}>{r.amt}</span>
+          </div>
+        ))}
+      </div>
+      <div className={styles.split} aria-hidden>
         <span style={{ flex: 250 }} data-c="food" />
         <span style={{ flex: 374 }} data-c="groceries" />
         <span style={{ flex: 40 }} data-c="other" />

@@ -56,6 +56,17 @@ body {
   }
 }
 
+/* No visible scrollbars anywhere (app screens, landing page, chips rows): scrolling still works
+   with wheel, trackpad, touch and keyboard. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* Keyboard focus: a coin-gold ring, visible on clay, cream and kiln-dark alike. */
 :focus-visible {
   outline: 3px solid #f5a90f;
