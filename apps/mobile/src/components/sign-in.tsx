@@ -1,5 +1,5 @@
-// Email + password accounts, with 6-digit email codes for confirming sign-up and resetting a password.
-// Codes work inside the installed apps; email links (also sent) open the browser instead.
+// Email + password accounts. Confirming sign-up and resetting a password use the normal email link:
+// the link opens gullak.sparkstudio.co.in in the browser; after confirming, you come back and sign in.
 
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -7,15 +7,7 @@ import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Wordmark } from '@/components/wordmark';
-import {
-  resendSignupCode,
-  resetPasswordWithCode,
-  sendPasswordReset,
-  setNewPassword,
-  signIn,
-  signUp,
-  verifySignupCode,
-} from '@/lib/api';
+import { resendSignupCode, sendPasswordReset, setNewPassword, signIn, signUp } from '@/lib/api';
 import { TAGLINE_EN } from '@/lib/app';
 import { isStandalone } from '@/lib/push';
 import { useClientValue } from '@/lib/use-client';
@@ -26,25 +18,33 @@ import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
 
 /**
- * signin / signup: the usual forms.
- * verify: enter the code from the sign-up email.
- * forgot: ask for a reset email. resetCode: code + new password.
- * recovery: opened from the reset link instead; just the new password.
+ * signin / signup / forgot: the usual forms.
+ * checkSignup: "we emailed you a link"; tap it, then sign in.
+ * checkReset: "we emailed you a reset link".
+ * recovery: opened from the reset link; just the new password.
  */
-type Mode = 'signin' | 'signup' | 'verify' | 'forgot' | 'resetCode' | 'recovery';
+type Mode = 'signin' | 'signup' | 'checkSignup' | 'forgot' | 'checkReset' | 'recovery';
 
-const COPY: Record<Mode, { title: string; en: string; button: string }> = {
-  signin: { title: 'Welcome back', en: TAGLINE_EN, button: 'Sign In' },
-  signup: { title: 'Start your Gullak', en: 'Create your account with your email and a password.', button: 'Create Account' },
-  verify: { title: 'One more step', en: 'Enter the code we emailed you, or tap the link in that email and come back to sign in.', button: 'Confirm Email' },
-  forgot: { title: 'Forgot your password?', en: 'We’ll email you a code to set a new password.', button: 'Send Code' },
-  resetCode: { title: 'Set a new password', en: 'Enter the code from the email and your new password.', button: 'Save Password' },
-  recovery: { title: 'Set a new password', en: 'Choose a new password for your account.', button: 'Save Password' },
+const COPY: Record<Mode, { title: string; en: (email: string) => string; button: string }> = {
+  signin: { title: 'Welcome back', en: () => TAGLINE_EN, button: 'Sign In' },
+  signup: { title: 'Start your Gullak', en: () => 'Create your account with your email and a password.', button: 'Create Account' },
+  checkSignup: {
+    title: 'Check your email',
+    en: (email) => `We sent a link to ${email || 'your email'}. Tap it to confirm your account, then come back here and sign in.`,
+    button: 'I’ve Confirmed. Sign In',
+  },
+  forgot: { title: 'Forgot your password?', en: () => 'We’ll email you a link to set a new password.', button: 'Send Link' },
+  checkReset: {
+    title: 'Check your email',
+    en: (email) => `If ${email || 'that email'} has an account, a reset link is on its way. Tap it to choose a new password.`,
+    button: 'Back to Sign In',
+  },
+  recovery: { title: 'Set a new password', en: () => 'Choose a new password for your account.', button: 'Save Password' },
 };
 
 const MIN_PASSWORD = 8;
 
-/** The three forms that have their own URL. The code steps stay on the page that started them. */
+/** The three forms that have their own URL. The "check your email" steps stay on the page that started them. */
 type Start = 'signin' | 'signup' | 'forgot';
 const ROUTE: Record<Start, '/sign-in' | '/sign-up' | '/forgot-password'> = {
   signin: '/sign-in',
@@ -59,7 +59,6 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
   const mode: Mode = recovering ? 'recovery' : chosen;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   // In a browser tab (not the installed app) the website is one tap back.
@@ -73,13 +72,17 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
     }
     setMode(next);
     setMessage(note ?? null);
-    setCode('');
-    if (next !== 'verify') setPassword('');
+    setPassword('');
   };
 
   const addr = email.trim();
 
   const submit = async () => {
+    // The "check your email" screens' main button just moves on.
+    if (mode === 'checkSignup' || mode === 'checkReset') {
+      go('signin');
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -88,10 +91,10 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
           try {
             await signIn(addr, password);
           } catch (e) {
-            // Signed up but never confirmed: send a fresh code and ask for it.
+            // Signed up but never confirmed: send the link again and say so.
             if (/confirm your email/i.test((e as Error).message)) {
               await resendSignupCode(addr).catch(() => {});
-              go('verify', { ok: true, text: `We sent a new code to ${addr}.` });
+              go('checkSignup', { ok: true, text: 'Your email isn’t confirmed yet, so we sent the link again.' });
               return;
             }
             throw e;
@@ -99,18 +102,12 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
           break;
         case 'signup': {
           const { needsConfirmation } = await signUp(addr, password);
-          if (needsConfirmation) go('verify', { ok: true, text: `Code sent to ${addr}. Check spam if it isn’t there in a minute.` });
+          if (needsConfirmation) go('checkSignup', { ok: true, text: 'Not there in a minute? Check spam.' });
           break;
         }
-        case 'verify':
-          await verifySignupCode(addr, code);
-          break;
         case 'forgot':
           await sendPasswordReset(addr);
-          go('resetCode', { ok: true, text: `If ${addr} has an account, a code is on its way.` });
-          break;
-        case 'resetCode':
-          await resetPasswordWithCode(addr, code, password);
+          go('checkReset');
           break;
         case 'recovery':
           await setNewPassword(password);
@@ -126,22 +123,19 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
   const resend = async () => {
     setMessage(null);
     try {
-      if (mode === 'verify') await resendSignupCode(addr);
+      if (mode === 'checkSignup') await resendSignupCode(addr);
       else await sendPasswordReset(addr);
-      setMessage({ ok: true, text: `New code sent to ${addr}.` });
+      setMessage({ ok: true, text: `Sent again to ${addr}.` });
     } catch (e) {
       setMessage({ ok: false, text: (e as Error).message });
     }
   };
 
+  const checking = mode === 'checkSignup' || mode === 'checkReset';
   const needsEmail = mode === 'signin' || mode === 'signup' || mode === 'forgot';
-  const needsCode = mode === 'verify' || mode === 'resetCode';
-  const needsPassword = mode === 'signin' || mode === 'signup' || mode === 'resetCode' || mode === 'recovery';
-  const newPassword = mode === 'signup' || mode === 'resetCode' || mode === 'recovery';
-  const valid =
-    (!needsEmail || /.+@.+\..+/.test(addr)) &&
-    (!needsCode || code.replace(/\D/g, '').length >= 6) &&
-    (!needsPassword || password.length >= (newPassword ? MIN_PASSWORD : 1));
+  const needsPassword = mode === 'signin' || mode === 'signup' || mode === 'recovery';
+  const newPassword = mode === 'signup' || mode === 'recovery';
+  const valid = checking || ((!needsEmail || /.+@.+\..+/.test(addr)) && (!needsPassword || password.length >= (newPassword ? MIN_PASSWORD : 1)));
   const copy = COPY[mode];
 
   return (
@@ -178,7 +172,7 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
             {copy.title}
           </Text>
           <Text variant="body" color="secondaryLabel" align="center" style={styles.tagline}>
-            {needsCode ? `${copy.en} (${addr})` : copy.en}
+            {copy.en(addr)}
           </Text>
 
           <View style={styles.form}>
@@ -193,18 +187,6 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
                 keyboardType="email-address"
                 textContentType={newPassword ? 'username' : 'emailAddress'}
                 onSubmitEditing={mode === 'forgot' ? submit : undefined}
-              />
-            ) : null}
-            {needsCode ? (
-              <Field
-                label="Code"
-                value={code}
-                onChangeText={(v) => setCode(v.replace(/[^\d ]/g, '').slice(0, 8))}
-                placeholder="6-digit code"
-                keyboardType="number-pad"
-                autoComplete="one-time-code"
-                textContentType="oneTimeCode"
-                onSubmitEditing={mode === 'verify' ? submit : undefined}
               />
             ) : null}
             {needsPassword ? (
@@ -238,14 +220,16 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
                     <Button title="New here? Create an account" kind="plain" size="small" onPress={() => go('signup')} />
                     <Button title="Forgot password?" kind="plain" size="small" tint="secondaryLabel" onPress={() => go('forgot')} />
                   </>
-                ) : needsCode ? (
+                ) : checking ? (
                   <>
-                    {mode === 'verify' ? (
-                      // The email link confirms the account on its own; after tapping it, just sign in.
-                      <Button title="I tapped the link in the email. Sign in" kind="plain" size="small" onPress={() => go('signin')} />
-                    ) : null}
-                    <Button title="Send a new code" kind="plain" size="small" onPress={resend} />
-                    <Button title="Use a different email" kind="plain" size="small" tint="secondaryLabel" onPress={() => go(mode === 'verify' ? 'signup' : 'forgot')} />
+                    {addr ? <Button title="Send the email again" kind="plain" size="small" onPress={resend} /> : null}
+                    <Button
+                      title="Use a different email"
+                      kind="plain"
+                      size="small"
+                      tint="secondaryLabel"
+                      onPress={() => go(mode === 'checkSignup' ? 'signup' : 'forgot')}
+                    />
                   </>
                 ) : (
                   <Button title="I have an account. Sign in" kind="plain" size="small" onPress={() => go('signin')} />
