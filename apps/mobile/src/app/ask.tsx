@@ -17,20 +17,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { friendly, isDemo, supabase } from '@/lib/api';
+import { clearChat, contextForServer, loadChat, saveChat, type ChatMessage } from '@/lib/chat-history';
+import { confirm } from '@/lib/confirm';
+import { useData } from '@/lib/data';
 import { BackChevron } from '@/ui/icons';
 import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { fontFamily, layout, type, useColors } from '@/ui/theme';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  used?: string[];
-  error?: boolean;
-  /** Server signature for Gullu's answers; sent back so the server trusts them as history. */
-  sig?: string;
-}
+type Message = ChatMessage;
 
 const SUGGESTIONS = [
   'How much did I spend on chai this month?',
@@ -113,15 +111,45 @@ function Thinking() {
 export default function AskScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const { session } = useData();
+  const userId = isDemo ? null : (session?.userId ?? null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  // Saving waits until the saved chat has been loaded, so an empty screen never overwrites it.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const scroll = useRef<ScrollViewInstance>(null);
+
+  // Load the last 24 hours of chat for this user (kept on this device only).
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    loadChat(AsyncStorage, userId).then((saved) => {
+      if (!alive) return;
+      setMessages(saved);
+      setLoadedFor(userId);
+      if (saved.length) setTimeout(() => scroll.current?.scrollToEnd({ animated: false }), 50);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  // Save after every change. Error bubbles and anything older than 24 hours are left out.
+  useEffect(() => {
+    if (userId && loadedFor === userId) saveChat(AsyncStorage, userId, messages);
+  }, [messages, userId, loadedFor]);
+
+  const clear = async () => {
+    if (busy || !(await confirm('Clear chat?', 'This removes your chat with Gullu from this device.', 'Clear'))) return;
+    setMessages([]);
+    if (userId) await clearChat(AsyncStorage, userId);
+  };
 
   const send = async (text: string) => {
     const q = text.trim();
     if (!q || busy) return;
-    const next: Message[] = [...messages, { role: 'user', content: q }];
+    const next: Message[] = [...messages, { role: 'user', content: q, at: Date.now() }];
     setMessages(next);
     setDraft('');
     setBusy(true);
@@ -129,16 +157,16 @@ export default function AskScreen() {
     try {
       if (isDemo) throw new Error('Gullu answers from your real payments. Sign in to use it.');
       const { data, error } = await supabase.functions.invoke<{ answer: string; used: string[]; sig?: string }>('ask', {
-        body: { messages: next.filter((m) => !m.error).map(({ role, content, sig }) => (sig ? { role, content, sig } : { role, content })) },
+        body: { messages: contextForServer(next) },
       });
       if (error) {
         // Supabase wraps the function's JSON error; surface its message.
         const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
         throw new Error(body?.error ?? friendly(error));
       }
-      setMessages((m) => [...m, { role: 'assistant', content: data!.answer, used: data!.used, sig: data!.sig }]);
+      setMessages((m) => [...m, { role: 'assistant', content: data!.answer, used: data!.used, sig: data!.sig, at: Date.now() }]);
     } catch (e) {
-      setMessages((m) => [...m, { role: 'assistant', content: (e as Error).message, error: true }]);
+      setMessages((m) => [...m, { role: 'assistant', content: (e as Error).message, error: true, at: Date.now() }]);
     } finally {
       setBusy(false);
       setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
@@ -168,6 +196,19 @@ export default function AskScreen() {
               {busy ? 'counting coins…' : 'answers from your own payments'}
             </Text>
           </View>
+          {messages.length > 0 ? (
+            <Pressable
+              onPress={clear}
+              disabled={busy}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Clear chat"
+              style={({ pressed }) => [styles.clear, (pressed || busy) && { opacity: 0.5 }]}>
+              <Text variant="subheadline" style={{ color: c.tint }}>
+                Clear
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -181,7 +222,7 @@ export default function AskScreen() {
                   Hi, I’m Gullu. Ask me anything about your money.
                 </Text>
                 <Text variant="footnote" color="secondaryLabel" style={{ marginTop: 4 }}>
-                  I read your payment totals, never your messages.
+                  I read your payment totals, never your messages. Chats stay on this device for 24 hours.
                 </Text>
               </Sticker>
             </View>
@@ -310,5 +351,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   input: { flex: 1, minHeight: 46, borderRadius: 14, borderWidth: 2, paddingHorizontal: 14 },
+  clear: { paddingHorizontal: 4, paddingVertical: 6 },
   send: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
 });

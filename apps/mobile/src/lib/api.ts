@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type Session as SupabaseSession } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
+import { clearAllChats } from './chat-history';
+
 /** Sample data, no backend. Turn on with EXPO_PUBLIC_DEMO=1. */
 export const isDemo = process.env.EXPO_PUBLIC_DEMO === '1';
 
@@ -180,5 +182,7 @@ export async function setNewPassword(password: string) {
 
 export async function signOut() {
   await supabase.auth.signOut().catch(() => {});
+  // Gullu's saved chats are personal: none survive a sign-out (or account deletion) on this device.
+  if (isBrowser) await clearAllChats(AsyncStorage);
   set({ session: null, recovering: false });
 }
