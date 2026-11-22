@@ -395,7 +395,10 @@ function useTestStep() {
 function TestStep({ state, busy, result, send, live, last }: { state: StepState; last?: boolean } & ReturnType<typeof useTestStep>) {
   return (
     <Step n={5} title="Test it" state={state} last={last}>
-      <Note>{result ?? 'Sends a ₹1 sample SMS through the same path as the Shortcut. You can hide it afterwards.'}</Note>
+      <Note>
+        {result ??
+          'Checks the server side: sends a ₹1 sample straight from this app (not through your iPhone automation). The real test of the automation is your next bank SMS showing up in Activity.'}
+      </Note>
       <Button title="Send Test SMS" kind="tinted" onPress={send} loading={busy} disabled={!live} style={styles.button} />
       <View style={styles.connected}>
         <Badge text={live ? 'Connected' : 'Demo mode'} tint={live ? 'green' : 'orange'} />
