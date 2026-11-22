@@ -2,7 +2,7 @@ import '@/global.css';
 
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import { useEffect } from 'react';
-import { Platform, useColorScheme, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Landing } from '@/components/landing';
@@ -12,10 +12,10 @@ import { DataProvider, useData } from '@/lib/data';
 import { isStandalone } from '@/lib/push';
 import { useClientValue } from '@/lib/use-client';
 import { useAppFonts } from '@/ui/fonts';
-import { useColors } from '@/ui/theme';
+import { useColors, useScheme } from '@/ui/theme';
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
+  const scheme = useScheme();
   const c = useColors();
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const theme = { ...base, colors: { ...base.colors, background: c.groupedBackground, primary: c.tint } };

@@ -31,6 +31,9 @@ const NAV: { href: Href & string; label: string }[] = [
 function SiteLink({ href, className, children, label }: { href: Href & string; className?: string; children: ReactNode; label?: string }) {
   const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    // Home is a full page load: inside the app "/" is the signed-in Summary (protected), so an in-app push
+    // would bounce a visitor to sign-in. Loading "/" lets the server-rendered website home show.
+    if (href === '/') return;
     e.preventDefault();
     router.push(href);
   };
@@ -72,7 +75,9 @@ function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<
             <Mascot size={120} className={styles.footerMascot} />
             <div>
               <p className={styles.footerMark}>
-                <Logotype />
+                <SiteLink href="/" className={styles.footerHome} label={`${APP_NAME} home`}>
+                  <Logotype />
+                </SiteLink>
               </p>
               <p className={styles.footerLine}>Every rupee, sorted on its own. Free for iPhone.</p>
             </div>

@@ -2,6 +2,7 @@
 // The pot's clay, the coin's gold, the sprout's green, the cream wave band and the dark pixel outline.
 // Colours that get a hex alpha suffix appended (`${c.tint}26`) must stay 6-digit hex.
 
+import { useSyncExternalStore } from 'react';
 import { Platform, useColorScheme, type TextStyle } from 'react-native';
 
 const light = {
@@ -51,29 +52,30 @@ const light = {
   gray: '#8A7A70',
 };
 
-// Dark: "Gullak at midnight". A deep blue-violet night where the clay pot and the gold coin glow.
-// No brown: edges are faint light lines, the hard sticker shadow is near-black so cards still lift.
+// Dark: "kiln at night", the fired-clay browns of the pot, with strong contrast.
+// A near-black brown page so cards clearly lift off it, crisp warm-cream edges (not muddy brown lines),
+// bright cream text, and a near-black hard shadow under every sticker.
 const dark: typeof light = {
-  tint: '#FF6B3D',
-  clayDeep: '#E04E22',
+  tint: '#FF7A45',
+  clayDeep: '#E2581F',
   gold: '#FFC83D',
-  outline: 'rgba(255,255,255,0.14)',
-  shadow: '#05060E',
+  outline: 'rgba(255,226,186,0.22)',
+  shadow: '#050302',
   cream: '#FFE6BF',
-  onTint: '#170A04',
-  background: '#0A0B17',
-  groupedBackground: '#0F1020',
-  card: '#181A2E',
-  cardElevated: '#222540',
-  fill: 'rgba(255,255,255,0.12)',
-  fillTertiary: 'rgba(255,255,255,0.06)',
-  label: '#F6F3EE',
-  secondaryLabel: 'rgba(246,243,238,0.64)',
-  tertiaryLabel: 'rgba(246,243,238,0.34)',
-  placeholder: 'rgba(246,243,238,0.42)',
-  fieldBorder: 'rgba(255,255,255,0.22)',
-  separator: 'rgba(255,255,255,0.08)',
-  chrome: 'rgba(15,16,32,0.86)',
+  onTint: '#1A0A04',
+  background: '#0E0806',
+  groupedBackground: '#140C09',
+  card: '#241711',
+  cardElevated: '#321F16',
+  fill: 'rgba(255,226,186,0.15)',
+  fillTertiary: 'rgba(255,226,186,0.08)',
+  label: '#FFF5EA',
+  secondaryLabel: 'rgba(255,245,234,0.72)',
+  tertiaryLabel: 'rgba(255,245,234,0.44)',
+  placeholder: 'rgba(255,245,234,0.46)',
+  fieldBorder: 'rgba(255,226,186,0.4)',
+  separator: 'rgba(255,226,186,0.12)',
+  chrome: 'rgba(20,12,9,0.9)',
   blue: '#5AA8FF',
   green: '#5FD87A',
   red: '#FF5D5D',
@@ -92,8 +94,28 @@ const dark: typeof light = {
 export type Palette = typeof light;
 export type ColorName = keyof Palette;
 
+// Web pages are pre-rendered on the server, where there is no dark/light preference. Reading the scheme
+// with useSyncExternalStore makes React render the server value ('light') while hydrating and then
+// re-render with the browser's real preference, instead of keeping the server's light styles.
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+function subscribeScheme(onChange: () => void) {
+  if (typeof window === 'undefined' || !window.matchMedia) return () => {};
+  const media = window.matchMedia(DARK_QUERY);
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+const readScheme = (): 'light' | 'dark' =>
+  typeof window !== 'undefined' && window.matchMedia?.(DARK_QUERY).matches ? 'dark' : 'light';
+
+/** 'light' | 'dark', hydration-safe on the web; the system setting on native. */
+export function useScheme(): 'light' | 'dark' {
+  const native = useColorScheme();
+  const web = useSyncExternalStore(subscribeScheme, readScheme, () => 'light' as const);
+  return Platform.OS === 'web' ? web : native === 'dark' ? 'dark' : 'light';
+}
+
 export function useColors(): Palette {
-  return useColorScheme() === 'dark' ? dark : light;
+  return useScheme() === 'dark' ? dark : light;
 }
 
 // Geist for Latin, Noto Sans Devanagari for Hindi. Each weight is its own loaded family.

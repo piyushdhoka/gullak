@@ -1,7 +1,7 @@
 /* Gullak website, in the app's "Matka" design system (docs/DESIGN.md).
    The page is the mascot's peach-cream; cards are stickers (2px outline + hard offset shadow) that
    press down; the clay surfaces carry the cream wave band; numbers and headlines are in the pixel face.
-   No glows, no gradients, no blur. Dark mode is "sprout night": a deep green dark, from the mascot's sprout, where the clay and gold glow. */
+   No glows, no gradients, no blur. Dark mode is "kiln at night": fired-clay browns with strong contrast, crisp cream edges. */
 
 .page {
   --page: #fcefd9;
@@ -49,30 +49,30 @@
 
 @media (prefers-color-scheme: dark) {
   .page {
-    --page: #0c1611;
-    --card: #14221a;
-    --card-hi: #1c2f24;
-    --clay: #ff6b3d;
-    --clay-deep: #e04e22;
-    --on-clay: #170a04;
-    --on-clay-big: #170a04;
-    --footer: #e04e22;
+    --page: #140c09;
+    --card: #241711;
+    --card-hi: #321f16;
+    --clay: #ff7a45;
+    --clay-deep: #e2581f;
+    --on-clay: #1a0a04;
+    --on-clay-big: #1a0a04;
+    --footer: #e2581f;
     --on-footer: #fff6ea;
     --coin: #ffc83d;
     --sprout: #5fd87a;
     --sprout-text: #5fd87a;
-    --outline: rgba(255, 255, 255, 0.14);
-    --shadow: #05060e;
-    --ink: #f6f3ee;
-    --ink-2: rgba(246, 243, 238, 0.72);
-    --ink-3: rgba(246, 243, 238, 0.5);
-    --hair: rgba(255, 255, 255, 0.1);
-    --fill: rgba(255, 255, 255, 0.12);
-    --fill-2: rgba(255, 255, 255, 0.06);
+    --outline: rgba(255, 226, 186, 0.22);
+    --shadow: #050302;
+    --ink: #fff5ea;
+    --ink-2: rgba(255, 245, 234, 0.78);
+    --ink-3: rgba(255, 245, 234, 0.55);
+    --hair: rgba(255, 226, 186, 0.14);
+    --fill: rgba(255, 226, 186, 0.15);
+    --fill-2: rgba(255, 226, 186, 0.08);
     --red: #ff5d5d;
-    --wall: #08100b;
-    --bubble: #20372a;
-    --paper: #172a1f;
+    --wall: #0e0806;
+    --bubble: #3a2419;
+    --paper: #2a1a12;
   }
 }
 
@@ -500,7 +500,7 @@
 
 @media (prefers-color-scheme: dark) {
   .lockTop {
-    color: #f6f3ee;
+    color: #fff5ea;
   }
 }
 
@@ -2182,4 +2182,10 @@
   .marqueeTrack + .marqueeTrack {
     display: none;
   }
+}
+
+/* The footer wordmark is a link home; keep it looking like the wordmark. */
+.footerHome {
+  color: inherit;
+  text-decoration: none;
 }
