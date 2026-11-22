@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -31,7 +32,7 @@ export default function InboxScreen() {
           )}
         </Text>
         <Text variant="subheadline" color="secondaryLabel" style={{ marginTop: 4 }}>
-          Bank texts that didn’t turn into a payment. Copy one and send it over so its format can be supported.
+          Bank texts that didn’t turn into a payment. Add one yourself and pick its category, or dismiss it.
         </Text>
       </View>
 
@@ -61,6 +62,11 @@ export default function InboxScreen() {
             </View>
             <View style={styles.actions}>
               <Button
+                title="Add as payment"
+                size="small"
+                onPress={() => router.push({ pathname: '/add', params: { sms: m.id } })}
+              />
+              <Button
                 title={copied === m.id ? 'Copied ✓' : 'Copy'}
                 kind="tinted"
                 size="small"
@@ -84,5 +90,5 @@ const styles = StyleSheet.create({
   card: { marginHorizontal: layout.inset, marginBottom: 16, padding: 14, gap: 10 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   bubble: { borderRadius: 12, borderTopLeftRadius: 4, padding: 12 },
-  actions: { flexDirection: 'row', gap: 8 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

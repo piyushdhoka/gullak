@@ -1,7 +1,6 @@
 // Capture setup: a real sequence, so it's drawn as a stepper. Each step is a sticker card on a rail;
 // finished steps get the sprout-green check, the first unfinished one is outlined in clay.
 
-import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -202,13 +201,6 @@ function NotificationStep({
       {!done ? (
         <Button title="Turn On Notifications" onPress={turnOn} loading={busy} disabled={ps === 'denied'} style={styles.button} />
       ) : null}
-      <Button
-        title="See every notification"
-        kind="plain"
-        size="small"
-        onPress={() => router.push('/notifications')}
-        style={styles.plain}
-      />
     </Step>
   );
 }

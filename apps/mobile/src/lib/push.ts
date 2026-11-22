@@ -76,6 +76,22 @@ export async function enablePush(): Promise<{ ok: true } | { ok: false; message:
   }
 }
 
+/** Turns notifications off for this device: removes it from the server and drops the browser subscription. */
+export async function disablePush(): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!isWeb() || !('serviceWorker' in navigator)) return { ok: true };
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return { ok: true };
+    const { error } = await supabase.from('devices').delete().eq('endpoint', sub.endpoint);
+    if (error) throw error;
+    await sub.unsubscribe();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: friendly(e) };
+  }
+}
+
 /**
  * Self-heal: when notifications are already allowed on this device, make sure the server has this
  * device saved. The browser keeps its push subscription across account switches and database resets,

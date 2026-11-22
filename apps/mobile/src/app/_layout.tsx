@@ -50,7 +50,7 @@ const PUBLIC = new Set(['/how-it-works', '/features', '/faq', '/install', '/sign
  *   Signed out:  /  (website home, in a browser tab)   /how-it-works  /features  /faq  /install
  *                /sign-in  /sign-up  /forgot-password
  *   Signed in:   /  /activity  /settings  /setup  /transaction  /review  /inbox  /add  /budgets
- *                /subscriptions  /jars  /jar  /ask  /notifications
+ *                /subscriptions  /jars  /jar  /ask
  * Each side is hidden from the other with Stack.Protected: signed-out visits to the app go to /sign-in,
  * signed-in visits to the public pages go home.
  */
@@ -82,7 +82,6 @@ function Gate() {
           <Stack.Screen name="jars" />
           <Stack.Screen name="jar" />
           <Stack.Screen name="ask" />
-          <Stack.Screen name="notifications" />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="(site)" />

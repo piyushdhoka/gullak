@@ -1,12 +1,13 @@
 // Add a payment by hand: cash, UPI Lite, anything that doesn't send a bank SMS.
 // A calculator-style sheet: a huge pixel amount, a keypad, a tile grid of categories, one Save.
 
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CategoryGrid, groupAmount, Keypad, PillChoices, typeAmount, type AmountKey } from '@/components/add-parts';
+import { guessFromSms } from '@/components/sms-guess';
 import { CATEGORIES } from '@/lib/categories';
 import { useData } from '@/lib/data';
 import { dayLabel, money } from '@/lib/format';
@@ -18,6 +19,10 @@ import { layout, useColors } from '@/ui/theme';
 
 const SPEND = CATEGORIES.filter((c) => c !== 'Income' && c !== 'Refund');
 const RECEIVE = ['Income', 'Refund', 'Transfers', 'Other'] as const;
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
 
 function daysBack(n: number) {
   const d = new Date();
@@ -39,13 +44,18 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6].map((n) => ({
 export default function AddScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { addManual } = useData();
-  const [direction, setDirection] = useState<'debit' | 'credit'>('debit');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<string>('Food');
-  const [payee, setPayee] = useState('');
+  const { addManual, inbox, dismissSms } = useData();
+  // Opened from "Add as payment" on an SMS Gullak couldn't read: start from what the SMS seems to say.
+  const { sms: smsId } = useLocalSearchParams<{ sms?: string }>();
+  const sms = smsId ? inbox.find((m) => m.id === smsId) : undefined;
+  const [guess] = useState(() => (sms ? guessFromSms(sms.body) : null));
+  const smsDay = sms ? Math.round((startOfDay(new Date()) - startOfDay(new Date(sms.received_at))) / 86_400_000) : -1;
+  const [direction, setDirection] = useState<'debit' | 'credit'>(guess?.direction ?? 'debit');
+  const [amount, setAmount] = useState(guess?.amount ?? '');
+  const [category, setCategory] = useState<string>(guess?.direction === 'credit' ? 'Income' : 'Food');
+  const [payee, setPayee] = useState(guess?.payee ?? '');
   const [note, setNote] = useState('');
-  const [day, setDay] = useState(0);
+  const [day, setDay] = useState(smsDay >= 0 && smsDay <= 6 ? smsDay : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,9 +76,13 @@ export default function AddScreen() {
     setBusy(true);
     setError(null);
     try {
-      const when = daysBack(day);
+      let when = daysBack(day);
       if (day > 0) when.setHours(12, 0, 0, 0);
+      // Same day as the SMS: use its exact time.
+      if (sms && day === smsDay) when = new Date(sms.received_at);
       await addManual({ amount: value, category, direction, payee, note, occurredAt: when });
+      // Now it's a payment, the SMS no longer needs to wait in "Not recognised".
+      if (sms) await dismissSms(sms.id).catch(() => {});
       router.back();
     } catch (e) {
       setError((e as Error).message);
@@ -79,8 +93,18 @@ export default function AddScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen title="Add a payment" largeTitle={false} back="Cancel" tabBar={false}>
+      <Screen title={sms ? 'Add from SMS' : 'Add a payment'} largeTitle={false} back="Cancel" tabBar={false}>
         <View style={styles.pad}>
+          {sms ? (
+            <View style={[styles.smsNote, { backgroundColor: c.fillTertiary, borderColor: c.separator }]}>
+              <Text variant="caption1" weight="600" color="secondaryLabel">
+                The SMS Gullak couldn’t read. Check the amount, pick a category, save.
+              </Text>
+              <Text variant="footnote" numberOfLines={5} selectable>
+                {sms.body}
+              </Text>
+            </View>
+          ) : null}
           <SegmentedControl
             options={[
               { value: 'debit', label: 'Paid' },
@@ -178,13 +202,14 @@ export default function AddScreen() {
 }
 
 const styles = StyleSheet.create({
+  smsNote: { borderRadius: 12, borderWidth: 1.5, padding: 12, gap: 6, marginBottom: 12 },
   pad: { marginHorizontal: layout.inset, marginBottom: 16 },
   amountCard: { marginHorizontal: layout.inset, marginBottom: 16, paddingTop: 14, paddingBottom: 14 },
   amountTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   amountLine: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4, minHeight: 72 },
   rupee: { opacity: 0.9 },
   band: { marginTop: 2, marginBottom: 10, opacity: 0.9 },
-  head: { marginHorizontal: layout.inset + 2, marginBottom: 6 },
+  head: { marginHorizontal: layout.inset + layout.inset, marginBottom: 8 },
   saveBar: {
     position: 'absolute',
     left: 0,

@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { confirm } from '@/lib/confirm';
 
+import { PushToggle } from '@/components/settings-push';
 import { Wordmark } from '@/components/wordmark';
 import { APP_NAME, TAGLINE_EN } from '@/lib/app';
 import { useData } from '@/lib/data';
@@ -50,21 +51,8 @@ export default function SettingsScreen() {
     <Screen title="Settings">
       <Profile />
 
-      <Section header="Alerts and capture">
-        <Row
-          left={tile(c.gold, '🔔')}
-          title="Notifications"
-          subtitle="See what Gullak will send you"
-          chevron
-          onPress={() => router.push('/notifications')}
-        />
-        <Row
-          left={tile(c.tint, '⚡')}
-          title="Capture setup"
-          subtitle="Bank SMS in, payments out"
-          chevron
-          onPress={() => router.push('/setup')}
-        />
+      <Section header="Notifications">
+        <PushToggle />
       </Section>
 
       <Section header="Money">
@@ -95,7 +83,7 @@ export default function SettingsScreen() {
       <Section header="Messages" footer="Bank SMS the app couldn’t read yet. They’re kept so nothing is lost.">
         <Row
           left={tile(c.orange, '✉️')}
-          title="Not Recognised"
+          title="Not recognised"
           value={String(inbox.length)}
           chevron
           onPress={() => router.push('/inbox')}
