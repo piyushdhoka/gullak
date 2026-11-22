@@ -5,6 +5,8 @@
 import { useSyncExternalStore } from 'react';
 import { Platform, useColorScheme, type TextStyle } from 'react-native';
 
+import { useThemePref } from './theme-pref';
+
 const light = {
   /** Clay, from the pot. Buttons, links, selected tabs. */
   tint: '#D2461E',
@@ -107,10 +109,12 @@ function subscribeScheme(onChange: () => void) {
 const readScheme = (): 'light' | 'dark' =>
   typeof window !== 'undefined' && window.matchMedia?.(DARK_QUERY).matches ? 'dark' : 'light';
 
-/** 'light' | 'dark', hydration-safe on the web; the system setting on native. */
+/** 'light' | 'dark': the Appearance choice in Settings, or the phone's setting when it's "System". Hydration-safe on the web. */
 export function useScheme(): 'light' | 'dark' {
+  const pref = useThemePref();
   const native = useColorScheme();
   const web = useSyncExternalStore(subscribeScheme, readScheme, () => 'light' as const);
+  if (pref !== 'system') return pref;
   return Platform.OS === 'web' ? web : native === 'dark' ? 'dark' : 'light';
 }
 

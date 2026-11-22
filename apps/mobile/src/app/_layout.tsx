@@ -22,6 +22,13 @@ export default function RootLayout() {
   const fontsLoaded = useAppFonts();
 
   useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    document.documentElement.style.backgroundColor = c.groupedBackground;
+    document.body.style.backgroundColor = c.groupedBackground;
+    document.documentElement.style.colorScheme = scheme;
+  }, [c.groupedBackground, scheme]);
+
+  useEffect(() => {
     // Service worker only handles push notifications (no offline caching, so updates are never stuck).
     if (Platform.OS === 'web' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});

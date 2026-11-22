@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -5,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { confirm } from '@/lib/confirm';
 
+import { AppearancePicker } from '@/components/settings-appearance';
 import { PushToggle } from '@/components/settings-push';
 import { tileInk } from '@/components/txn-row';
 import { Wordmark } from '@/components/wordmark';
@@ -18,6 +20,9 @@ import { Screen } from '@/ui/screen';
 import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { layout, useColors, type ColorName } from '@/ui/theme';
+
+// From app.json, so the number shown always matches the build.
+const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 
 export default function SettingsScreen() {
   const { mode, session, inbox, transactions, budgets, jars, signOut, deleteAccount } = useData();
@@ -55,6 +60,10 @@ export default function SettingsScreen() {
 
       <Section header="Notifications">
         <PushToggle />
+      </Section>
+
+      <Section header="Appearance" footer="System follows your phone’s light or dark setting.">
+        <AppearancePicker />
       </Section>
 
       <Section header="Money">
@@ -100,7 +109,7 @@ export default function SettingsScreen() {
       <Section
         header="About"
         footer={`${APP_NAME} reads the SMS your bank sends (forwarded by an iOS Shortcut on iPhone) and sorts each payment automatically. Personal messages are discarded without being stored.`}>
-        <Row title="Version" value="0.1.0" />
+        <Row title="Version" value={APP_VERSION} />
         <Row title="Capture" value="Bank SMS" />
       </Section>
 
