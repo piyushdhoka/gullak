@@ -34,9 +34,9 @@ function publicKey(): string {
 
 /**
  * A client that acts as the caller (their token + the public key), so row-level security limits it to
- * their own rows. Returns null when the token is missing or invalid.
+ * their own rows, plus the caller's user id. Returns null when the token is missing or invalid.
  */
-export async function userClient(req: Request): Promise<SupabaseClient | null> {
+export async function userSession(req: Request): Promise<{ db: SupabaseClient; userId: string } | null> {
   const auth = req.headers.get('authorization') ?? '';
   if (!/^Bearer\s+\S+/i.test(auth)) return null;
   const db = createClient(Deno.env.get('SUPABASE_URL')!, publicKey(), {
@@ -44,13 +44,59 @@ export async function userClient(req: Request): Promise<SupabaseClient | null> {
     auth: { persistSession: false },
   });
   const { data } = await db.auth.getUser(auth.replace(/^Bearer\s+/i, ''));
-  return data.user ? db : null;
+  return data.user ? { db, userId: data.user.id } : null;
+}
+
+/** Same as userSession, for callers that only need the client. */
+export async function userClient(req: Request): Promise<SupabaseClient | null> {
+  return (await userSession(req))?.db ?? null;
+}
+
+/** Key for signing Gullu's answers. GULLU_SIGNING_KEY if set, otherwise the project's secret key. */
+export function signingKey(): string {
+  return Deno.env.get('GULLU_SIGNING_KEY') || secretKey();
+}
+
+export interface RateResult {
+  allowed: boolean;
+  reason: 'minute' | 'day' | 'busy' | 'error' | null;
+  retry_after: number;
+}
+
+/**
+ * Counts one use of an AI feature against the caller's limits (public.ai_allow).
+ * Fails closed: if the check itself fails, the AI call is refused, so an outage can't turn into an unlimited bill.
+ */
+export async function checkRate(db: SupabaseClient, kind: 'ask' | 'why'): Promise<RateResult> {
+  const { data, error } = await db.rpc('ai_allow', { p_kind: kind });
+  if (error || !data) {
+    console.error('rate check failed', error);
+    return { allowed: false, reason: 'error', retry_after: 60 };
+  }
+  return data as RateResult;
+}
+
+/** A 429 with a Retry-After header and a message people can read. */
+export function rateLimited(rate: RateResult, extra: Record<string, unknown> = {}) {
+  const error =
+    rate.reason === 'day'
+      ? 'You’ve asked Gullu a lot today. Try again tomorrow.'
+      : rate.reason === 'busy'
+        ? 'Gullu is very busy right now. Try again in a while.'
+        : rate.reason === 'error'
+          ? 'Gullu isn’t answering right now. Try again in a minute.'
+          : `Slow down a little. Try again in ${rate.retry_after} seconds.`;
+  return new Response(JSON.stringify({ error, retry_after: rate.retry_after, ...extra }), {
+    status: rate.reason === 'error' ? 503 : 429,
+    headers: { ...CORS, 'Content-Type': 'application/json', 'Retry-After': String(rate.retry_after) },
+  });
 }
 
 export const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-capture-key',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Expose-Headers': 'retry-after',
 };
 
 export function json(status: number, body: unknown) {

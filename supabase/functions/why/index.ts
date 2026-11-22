@@ -5,10 +5,11 @@
 // The odds behind "Why this category?": Gemini Decision 1 rates every category for this payee.
 // The payment is read with the caller's own token (row-level security), and only the payee name,
 // UPI ID and direction are sent to Google. QR codes and payment IDs are not sent (nothing to judge).
+// Rate limited per user, like the chatbot.
 
 import { isOpaquePayee } from '../../../packages/core/src/categorize.ts';
 import { categoryOdds } from '../../../packages/core/src/decision.ts';
-import { CORS, json, userClient } from '../_shared/server.ts';
+import { checkRate, CORS, json, rateLimited, userClient } from '../_shared/server.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -27,6 +28,10 @@ Deno.serve(async (req) => {
   const { data: t } = await db.from('transactions').select('payee, vpa, direction, channel').eq('id', id).maybeSingle();
   if (!t) return json(404, { error: 'Payment not found' });
   if (t.channel === 'atm' || t.channel === 'cash' || isOpaquePayee(t.payee, t.vpa)) return json(200, { odds: null });
+
+  // Only calls that reach the AI count (20 a minute, 200 a day per user; see public.ai_allow).
+  const rate = await checkRate(db, 'why');
+  if (!rate.allowed) return rateLimited(rate, { odds: null });
 
   try {
     const odds = await categoryOdds({ payee: t.payee, vpa: t.vpa, direction: t.direction }, { apiKey });
