@@ -11,7 +11,7 @@
 // Everything renders statically (expo export pre-renders it): no window/document access during render.
 
 import { router, type Href } from 'expo-router';
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type ComponentType, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from 'react';
 
 import { APP_NAME, WORDMARK } from '@/lib/app';
 import { BRAND_LOGOS } from '@/ui/brand-logos';
@@ -191,11 +191,6 @@ export function Landing() {
 
         <section className={styles.note} aria-labelledby="note-title">
           <div className={styles.receiptWrap}>
-            <CrumpleReceipt />
-          </div>
-          <CrumpleHint />
-          {/* The bill's words, for screen readers and search engines; the sheet above is a picture of it. */}
-          <div className={styles.srOnly}>
             <article className={styles.receipt}>
               <p className={styles.receiptShop} aria-hidden>
                 Gullak · since the first coin
@@ -750,56 +745,6 @@ function PrivacyIcon({ kind }: { kind: 'chat' | 'key' | 'server' }) {
       </svg>
     </span>
   );
-}
-
-/* ---------------- the crumple-able receipt ---------------- */
-
-// React Bits' PaperCrumple (vendored, see vendor/paper-crumple/LICENSE.md). It pulls in three.js, so it is
-// loaded only when the receipt scrolls into view; until then (and for crawlers) a plain image shows.
-const PaperCrumple = lazy(
-  () => import('./vendor/paper-crumple/PaperCrumple.jsx') as unknown as Promise<{ default: ComponentType<Record<string, unknown>> }>,
-);
-const RECEIPT_SRC = '/site/why-receipt.webp';
-const RECEIPT_RATIO = 1393 / 1040;
-
-function CrumpleReceipt() {
-  const [ref, seen] = useSeen<HTMLDivElement>(0.15);
-  const reduce = useReducedMotion();
-  const [width, setWidth] = useState(360);
-  useEffect(() => {
-    const fit = () => setWidth(Math.round(Math.min(420, window.innerWidth - 48)));
-    fit();
-    window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-  }, []);
-  const height = Math.round(width * RECEIPT_RATIO);
-  const still = <img src={RECEIPT_SRC} alt="" width={width} height={height} className={styles.receiptImg} />;
-  return (
-    <div ref={ref} className={styles.crumple} aria-hidden>
-      {seen && !reduce ? (
-        <Suspense fallback={still}>
-          <PaperCrumple
-            src={RECEIPT_SRC}
-            alt=""
-            width={width}
-            height={height}
-            sceneHeight={height + 140}
-            paperColor="#fffaf2"
-            crumpleAmount={0.9}
-            foldCount={7}
-            shadowOpacity={0.14}
-          />
-        </Suspense>
-      ) : (
-        still
-      )}
-    </div>
-  );
-}
-
-function CrumpleHint() {
-  const reduce = useReducedMotion();
-  return reduce ? null : <p className={styles.crumpleHint}>Hold and drag the bill to crumple it</p>;
 }
 
 function useSeen<T extends Element>(threshold = 0.4) {

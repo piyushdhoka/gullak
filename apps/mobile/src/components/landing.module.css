@@ -2190,30 +2190,6 @@
   text-decoration: none;
 }
 
-/* The crumple-able receipt (React Bits PaperCrumple): centred, a hint under it. */
-.crumple {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  max-width: 100%;
-  touch-action: none;
-}
-.receiptImg {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  border-radius: 4px;
-  box-shadow: 4px 4px 0 var(--shadow);
-}
-.crumpleHint {
-  margin: 14px 0 0;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-3);
-}
-
 /* Real merchant logos (on their brand colour) in the demo rows. */
 .brandTile {
   font-size: 0 !important;
