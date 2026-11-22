@@ -1,4 +1,4 @@
-// Native (iOS/Android): load Geist and Noto Sans Devanagari, one family per weight.
+// Native (iOS/Android): load Geist and Noto Sans Devanagari, one family per weight, plus the pixel display face.
 // The web build uses fonts.web.ts instead, so these files never reach the website.
 
 import { Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold } from '@expo-google-fonts/geist';
@@ -8,6 +8,7 @@ import {
   NotoSansDevanagari_600SemiBold,
   NotoSansDevanagari_700Bold,
 } from '@expo-google-fonts/noto-sans-devanagari';
+import { Jersey10_400Regular } from '@expo-google-fonts/jersey-10';
 import { useFonts } from 'expo-font';
 
 export function useAppFonts(): boolean {
@@ -20,6 +21,7 @@ export function useAppFonts(): boolean {
     NotoSansDevanagari_500Medium,
     NotoSansDevanagari_600SemiBold,
     NotoSansDevanagari_700Bold,
+    Jersey10_400Regular,
   });
   return loaded;
 }

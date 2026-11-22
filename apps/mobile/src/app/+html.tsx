@@ -15,6 +15,7 @@ export default function Root({ children }: PropsWithChildren) {
 
         {/* The main text font: fetch it early so the first paint already uses Geist. */}
         <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/jersey-10.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 
         {/* Installable web app (Add to Home Screen) */}
@@ -24,8 +25,8 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-title" content="Gulलक" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#FCEFD9" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#1B100C" media="(prefers-color-scheme: dark)" />
         <meta name="format-detection" content="telephone=no" />
 
         <ScrollViewStyleReset />

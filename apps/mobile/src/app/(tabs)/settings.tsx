@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { confirm } from '@/lib/confirm';
@@ -7,10 +8,13 @@ import { confirm } from '@/lib/confirm';
 import { Wordmark } from '@/components/wordmark';
 import { APP_NAME, TAGLINE_EN } from '@/lib/app';
 import { useData } from '@/lib/data';
+import { shortMonth } from '@/lib/format';
+import { monthOf } from '@/lib/stats';
 import { IconTile, Row, Section } from '@/ui/list';
 import { Screen } from '@/ui/screen';
+import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
-import { useColors } from '@/ui/theme';
+import { layout, useColors } from '@/ui/theme';
 
 export default function SettingsScreen() {
   const { mode, session, inbox, transactions, budgets, jars, signOut, deleteAccount } = useData();
@@ -35,111 +39,92 @@ export default function SettingsScreen() {
       setDeleting(false);
     }
   };
+
+  const tile = (color: string, emoji: string) => (
+    <IconTile color={color}>
+      <Text style={styles.emoji}>{emoji}</Text>
+    </IconTile>
+  );
+
   return (
     <Screen title="Settings">
-      <Section header="Account">
+      <Profile />
+
+      <Section header="Alerts and capture">
         <Row
-          left={
-            <IconTile color={c.gray}>
-              <Text style={{ fontSize: 16 }}>👤</Text>
-            </IconTile>
-          }
-          title={mode === 'live' ? session?.email ?? 'Signed in' : 'Demo mode'}
-          subtitle={mode === 'live' ? 'Signed in' : 'Showing sample data'}
+          left={tile(c.gold, '🔔')}
+          title="Notifications"
+          subtitle="See what Gullak will send you"
+          chevron
+          onPress={() => router.push('/notifications')}
+        />
+        <Row
+          left={tile(c.tint, '⚡')}
+          title="Capture setup"
+          subtitle="Bank SMS in, payments out"
+          chevron
+          onPress={() => router.push('/setup')}
         />
       </Section>
 
       <Section header="Money">
         <Row
-          left={
-            <IconTile color={c.green}>
-              <Text style={{ fontSize: 16 }}>🎯</Text>
-            </IconTile>
-          }
+          left={tile(c.green, '🎯')}
           title="Budgets"
           value={budgets.length ? String(budgets.length) : undefined}
           chevron
           onPress={() => router.push('/budgets')}
         />
         <Row
-          left={
-            <IconTile color={c.purple}>
-              <Text style={{ fontSize: 16 }}>🔁</Text>
-            </IconTile>
-          }
+          left={tile(c.purple, '🔁')}
           title="Subscriptions & repeats"
           chevron
           onPress={() => router.push('/subscriptions')}
         />
         <Row
-          left={
-            <IconTile color={c.gold}>
-              <Text style={{ fontSize: 16 }}>🐷</Text>
-            </IconTile>
-          }
+          left={tile(c.gold, '🐷')}
           title="Gullak Jars"
           value={jars.length ? String(jars.length) : undefined}
           chevron
           onPress={() => router.push('/jars')}
         />
-        <Row
-          left={
-            <IconTile color={c.tint}>
-              <Text style={{ fontSize: 16 }}>💬</Text>
-            </IconTile>
-          }
-          title="Ask Gullu"
-          chevron
-          onPress={() => router.push('/ask')}
-        />
-        <Row
-          left={
-            <IconTile color={c.brown}>
-              <Text style={{ fontSize: 16 }}>💵</Text>
-            </IconTile>
-          }
-          title="Add a cash payment"
-          chevron
-          onPress={() => router.push('/add')}
-        />
+        <Row left={tile(c.tint, '💬')} title="Ask Gullu" chevron onPress={() => router.push('/ask')} />
+        <Row left={tile(c.brown, '💵')} title="Add a cash payment" chevron onPress={() => router.push('/add')} />
       </Section>
 
       <Section header="Messages" footer="Bank SMS the app couldn’t read yet. They’re kept so nothing is lost.">
         <Row
-          left={
-            <IconTile color={c.orange}>
-              <Text style={{ fontSize: 16 }}>✉️</Text>
-            </IconTile>
-          }
+          left={tile(c.orange, '✉️')}
           title="Not Recognised"
           value={String(inbox.length)}
           chevron
           onPress={() => router.push('/inbox')}
         />
         <Row
-          left={
-            <IconTile color={c.indigo}>
-              <Text style={{ fontSize: 16 }}>🙈</Text>
-            </IconTile>
-          }
+          left={tile(c.indigo, '🙈')}
           title="Hidden payments"
           subtitle="Shown in Activity, left out of totals"
           value={String(hidden)}
         />
       </Section>
 
-
-      <Section header="About" footer={`${APP_NAME} reads the SMS your bank sends (forwarded by an iOS Shortcut on iPhone) and sorts each payment automatically. Personal messages are discarded without being stored.`}>
+      <Section
+        header="About"
+        footer={`${APP_NAME} reads the SMS your bank sends (forwarded by an iOS Shortcut on iPhone) and sorts each payment automatically. Personal messages are discarded without being stored.`}>
         <Row title="Version" value="0.1.0" />
         <Row title="Capture" value="Bank SMS" />
       </Section>
 
       {mode === 'live' ? (
         <>
-          <Section>
+          <Section header="Account">
             <Row title="Sign Out" destructive onPress={signOut} />
           </Section>
-          <Section footer={deleteError ?? 'Deletes your account and everything in it: payments, messages, budgets, jars and devices. This can’t be undone.'}>
+          <Section
+            footer={
+              deleteError ??
+              'Deletes your account and everything in it: payments, messages, budgets, jars and devices. This can’t be undone.'
+            }>
             <Row title={deleting ? 'Deleting…' : 'Delete Account'} destructive disabled={deleting} onPress={removeAccount} />
           </Section>
         </>
@@ -155,6 +140,100 @@ export default function SettingsScreen() {
   );
 }
 
+/** Who's signed in, with the mascot as the avatar and two numbers about what Gullak has done for them. */
+function Profile() {
+  const { mode, session, transactions } = useData();
+  const c = useColors();
+  const stats = useMemo(() => {
+    const captured = transactions.filter((t) => t.source === 'sms');
+    const auto = captured.filter((t) => t.category_source !== 'user' && t.category_source !== 'unknown').length;
+    const first = captured.reduce<string | null>((min, t) => (min == null || t.occurred_at < min ? t.occurred_at : min), null);
+    return {
+      count: captured.length,
+      sortedPct: captured.length ? Math.round((auto / captured.length) * 100) : null,
+      since: first ? `${shortMonth(monthOf(new Date(first)))} ${new Date(first).getFullYear()}` : null,
+    };
+  }, [transactions]);
+
+  const live = mode === 'live';
+  const name = live ? session?.email ?? 'Signed in' : 'Demo mode';
+  const line = { backgroundColor: c.separator };
+
+  return (
+    <Sticker style={styles.profile} radius={layout.cardRadius}>
+      <View style={styles.who}>
+        <View style={[styles.avatar, { backgroundColor: c.cream, borderColor: c.outline }]}>
+          <Image
+            source={require('../../../assets/images/logo-192.png')}
+            style={styles.mascot}
+            contentFit="contain"
+            accessibilityLabel="Gullak mascot"
+          />
+        </View>
+        <View style={styles.whoText}>
+          <Text variant="headline" numberOfLines={1}>
+            {name}
+          </Text>
+          <View style={styles.statusLine}>
+            <View style={[styles.dot, { backgroundColor: live ? c.green : c.gold, borderColor: c.outline }]} />
+            <Text variant="footnote" color="secondaryLabel" numberOfLines={1} style={styles.flexShrink}>
+              {live ? 'Signed in · syncing' : 'Showing sample data'}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View style={[styles.hLine, line]} />
+      <View style={styles.stats}>
+        <View style={styles.stat}>
+          <Text variant="footnote" color="secondaryLabel">
+            Payments captured
+          </Text>
+          <Text pixel variant="title2" style={styles.statValue} numberOfLines={1}>
+            {stats.count.toLocaleString('en-IN')}
+          </Text>
+          <Text variant="caption1" color="secondaryLabel" numberOfLines={1}>
+            {stats.since ? `bank SMS since ${stats.since}` : 'from bank SMS'}
+          </Text>
+        </View>
+        <View style={[styles.vLine, line]} />
+        <View style={styles.stat}>
+          <Text variant="footnote" color="secondaryLabel">
+            Sorted by Gullak
+          </Text>
+          <Text pixel variant="title2" color="green" style={styles.statValue} numberOfLines={1}>
+            {stats.sortedPct != null ? `${stats.sortedPct}%` : '—'}
+          </Text>
+          <Text variant="caption1" color="secondaryLabel" numberOfLines={1}>
+            no taps needed
+          </Text>
+        </View>
+      </View>
+    </Sticker>
+  );
+}
+
 const styles = StyleSheet.create({
+  emoji: { fontSize: 16 },
+  profile: { marginHorizontal: layout.inset, marginBottom: 35 },
+  who: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    borderWidth: layout.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  mascot: { width: 54, height: 54 },
+  whoText: { flex: 1, minWidth: 0, gap: 3 },
+  statusLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 9, height: 9, borderRadius: 2, borderWidth: 1 },
+  flexShrink: { flexShrink: 1 },
+  hLine: { height: StyleSheet.hairlineWidth },
+  vLine: { width: StyleSheet.hairlineWidth },
+  stats: { flexDirection: 'row' },
+  stat: { flex: 1, minWidth: 0, paddingHorizontal: 16, paddingVertical: 12 },
+  statValue: { marginTop: 2 },
   signature: { alignItems: 'center', gap: 2, marginTop: 8, marginBottom: 12, opacity: 0.9 },
 });

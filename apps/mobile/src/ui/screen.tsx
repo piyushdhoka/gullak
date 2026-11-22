@@ -30,6 +30,7 @@ export function Screen({
   refreshing = false,
   tabBar = true,
   hindi,
+  header,
 }: {
   title: string;
   /** The screen's name in Hindi, shown under the large title. */
@@ -43,6 +44,8 @@ export function Screen({
   refreshing?: boolean;
   /** Leave room for the tab bar. */
   tabBar?: boolean;
+  /** Replaces the large title with custom content (e.g. the home greeting). The inline title still shows on scroll. */
+  header?: ReactNode;
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -66,7 +69,9 @@ export function Screen({
         scrollEventThrottle={16}
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined}>
         <View style={styles.content}>
-          {largeTitle ? (
+          {header ? (
+            header
+          ) : largeTitle ? (
             <View style={styles.largeTitleWrap}>
               <Text display variant="largeTitle" style={styles.largeTitle} accessibilityRole="header">
                 {title}
@@ -109,7 +114,7 @@ export function Screen({
           </Text>
           <View style={[styles.side, styles.sideRight]}>{right}</View>
         </View>
-        {scrolled ? <View style={[styles.hairline, { backgroundColor: c.separator }]} /> : null}
+        {scrolled ? <View style={[styles.hairline, { backgroundColor: c.outline }]} /> : null}
       </View>
     </View>
   );
@@ -119,7 +124,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
   largeTitleWrap: { paddingHorizontal: layout.inset + 4, paddingTop: 3, paddingBottom: 14 },
-  largeTitle: { fontSize: 36, lineHeight: 46, letterSpacing: 0 },
+  largeTitle: { fontSize: 38, lineHeight: 46 },
   hindi: { marginTop: -4 },
   barWrap: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
   bar: {
@@ -135,5 +140,5 @@ const styles = StyleSheet.create({
   sideRight: { justifyContent: 'flex-end', paddingRight: 8 },
   inlineTitle: { flexShrink: 1, textAlign: 'center' },
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 8 },
-  hairline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
+  hairline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
 });

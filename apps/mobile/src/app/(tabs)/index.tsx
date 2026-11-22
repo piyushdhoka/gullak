@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -24,6 +25,7 @@ import {
 import { Button, Card } from '@/ui/controls';
 import { Row, Section } from '@/ui/list';
 import { Screen } from '@/ui/screen';
+import { Coin, MatkaBand, PixelBar, Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
 
@@ -34,10 +36,13 @@ export default function SummaryScreen() {
   const empty = !loading && transactions.length === 0;
 
   return (
-    <Screen title="Summary" right={<AddButton />} onRefresh={mode === 'live' ? refresh : undefined} refreshing={refreshing}>
+    <Screen
+      title="Summary"
+      header={<Greeting />}
+      onRefresh={mode === 'live' ? refresh : undefined}
+      refreshing={refreshing}>
+      <QuickActions review={review.length} payments={review.reduce((n, r) => n + r.count, 0)} />
       {mode === 'demo' ? <DemoBanner /> : null}
-      <AskRow />
-      {review.length ? <ReviewBanner payees={review.length} payments={review.reduce((n, r) => n + r.count, 0)} /> : null}
       {empty ? (
         <EmptyState />
       ) : (
@@ -63,24 +68,78 @@ export default function SummaryScreen() {
   );
 }
 
-function AskRow() {
+function greeting(h: number) {
+  if (h < 5) return 'Up late?';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/** The home header: the mascot says hello instead of a plain "Summary" title. */
+function Greeting() {
   const c = useColors();
   return (
-    <Section style={{ marginBottom: 20 }}>
-      <Row
-        left={
-          <View style={[styles.reviewDot, { backgroundColor: c.tint }]}>
-            <Text weight="700" style={{ color: '#fff' }}>
-              ?
-            </Text>
-          </View>
+    <View style={styles.greet}>
+      <View style={[styles.greetAvatar, { backgroundColor: c.cream, borderColor: c.outline }]}>
+        <Image source={require('../../../assets/images/logo-192.png')} style={styles.greetMascot} contentFit="contain" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="subheadline" color="secondaryLabel">
+          {greeting(new Date().getHours())}
+        </Text>
+        <Text display style={styles.greetTitle} accessibilityRole="header">
+          Your Gullak
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** Three big tappable stickers: the things you do most, one tap away. */
+function QuickActions({ review, payments }: { review: number; payments: number }) {
+  const c = useColors();
+  const items: { key: string; label: string; hint: string; icon: string; onPress: () => void; badge?: number; tone?: 'clay' | 'gold' }[] = [
+    { key: 'ask', label: 'Ask Gullu', hint: 'Ask about money', icon: '💬', onPress: () => router.push('/ask'), tone: 'clay' },
+    review
+      ? {
+          key: 'review',
+          label: `Sort ${review}`,
+          hint: `${payments} payment${payments === 1 ? '' : 's'} waiting`,
+          icon: '🤔',
+          onPress: () => router.push('/review'),
+          badge: review,
+          tone: 'gold',
         }
-        title="Ask Gullak"
-        subtitle="“How much did I spend on chai this month?”"
-        chevron
-        onPress={() => router.push('/ask')}
-      />
-    </Section>
+      : { key: 'jars', label: 'Jars', hint: 'Save for something', icon: '🫙', onPress: () => router.push('/jars') },
+    { key: 'add', label: 'Add cash', hint: 'Chai, auto, tips', icon: '🪙', onPress: () => router.push('/add') },
+  ];
+  return (
+    <View style={styles.quick}>
+      {items.map((it) => {
+        const bg = it.tone === 'clay' ? c.tint : it.tone === 'gold' ? c.gold : c.card;
+        const fg = it.tone === 'clay' ? c.onTint : it.tone === 'gold' ? '#1C0F0C' : c.label;
+        return (
+          <Pressable
+            key={it.key}
+            onPress={it.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={`${it.label}. ${it.hint}`}
+            style={styles.quickCell}>
+            {({ pressed }) => (
+              <Sticker color={bg} radius={14} pressed={pressed} style={styles.quickCard}>
+                <Text style={styles.quickIcon}>{it.icon}</Text>
+                <Text variant="subheadline" weight="700" numberOfLines={1} style={{ color: fg }}>
+                  {it.label}
+                </Text>
+                <Text variant="caption1" numberOfLines={1} style={{ color: fg, opacity: 0.75 }}>
+                  {it.hint}
+                </Text>
+              </Sticker>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -95,8 +154,8 @@ function Jars() {
   }
   return (
     <View style={{ marginBottom: 24 }}>
-      <Text variant="footnote" color="secondaryLabel" style={styles.jarsHead}>
-        GULLAK JARS
+      <Text variant="footnote" weight="600" color="secondaryLabel" style={styles.jarsHead} accessibilityRole="header">
+        Gullak Jars
       </Text>
       {jars.slice(0, 2).map((j) => {
         const p = jarPlan(j, jarEntries, transactions);
@@ -120,22 +179,6 @@ function Jars() {
         </Text>
       </Pressable>
     </View>
-  );
-}
-
-function AddButton() {
-  const c = useColors();
-  return (
-    <Pressable
-      onPress={() => router.push('/add')}
-      accessibilityRole="button"
-      accessibilityLabel="Add a cash payment"
-      hitSlop={10}
-      style={({ pressed }) => [styles.add, { backgroundColor: c.tint, opacity: pressed ? 0.7 : 1 }]}>
-      <Text weight="700" style={styles.addPlus}>
-        +
-      </Text>
-    </Pressable>
   );
 }
 
@@ -168,9 +211,7 @@ function Budgets({ s, budgets }: { s: MonthSummary; budgets: Budget[] }) {
                     {over ? `${money(-p.left, { whole: true })} over` : `${money(p.left, { whole: true })} left`}
                   </Text>
                 </View>
-                <View style={[styles.track, { backgroundColor: c.fillTertiary }]}>
-                  <View style={{ width: `${Math.min(100, Math.max(2, p.used * 100))}%`, height: '100%', borderRadius: 3, backgroundColor: color }} />
-                </View>
+                <PixelBar value={p.used} color={color} />
               </View>
             }
           />
@@ -203,15 +244,17 @@ function Trend({ s }: { s: MonthSummary }) {
           const current = sameMonth(p.month, s.month);
           return (
             <View key={`${p.month.year}-${p.month.month}`} style={styles.trendSlot}>
-              <Text variant="caption2" color="secondaryLabel" tabular numberOfLines={1}>
+              <Text pixel variant="caption1" color={current ? 'label' : 'secondaryLabel'} numberOfLines={1}>
                 {p.spent >= 1000 ? `${Math.round(p.spent / 1000)}k` : String(Math.round(p.spent))}
               </Text>
               <View style={styles.trendBarArea}>
                 <View
                   style={{
                     height: `${Math.max(p.spent > 0 ? 4 : 1.5, (p.spent / max) * 100)}%`,
-                    borderRadius: 4,
-                    backgroundColor: current ? c.tint : p.spent > 0 ? `${c.tint}66` : c.fillTertiary,
+                    borderRadius: 3,
+                    backgroundColor: current ? c.tint : p.spent > 0 ? `${c.tint}59` : c.fillTertiary,
+                    borderWidth: current ? 2 : 0,
+                    borderColor: c.outline,
                   }}
                 />
               </View>
@@ -254,74 +297,71 @@ function Subscriptions() {
 }
 
 function DemoBanner() {
-  return (
-    <Card style={styles.banner}>
-      <Text variant="headline">Sample data</Text>
-      <Text variant="subheadline" color="secondaryLabel" style={{ marginTop: 2, marginBottom: 12 }}>
-        This is what your month will look like. Connect your account and Shortcut to see real payments.
-      </Text>
-      <Button title="Set Up Capture" kind="tinted" size="small" onPress={() => router.push('/setup')} style={{ alignSelf: 'flex-start' }} />
-    </Card>
-  );
-}
-
-function ReviewBanner({ payees, payments }: { payees: number; payments: number }) {
   const c = useColors();
   return (
-    <Section style={{ marginBottom: 20 }}>
-      <Row
-        left={
-          <View style={[styles.reviewDot, { backgroundColor: c.orange }]}>
-            <Text weight="700" style={{ color: '#fff' }}>
-              {payees}
+    <Pressable onPress={() => router.push('/setup')} accessibilityRole="button" accessibilityLabel="Sample data. Set up capture to see real payments">
+      {({ pressed }) => (
+        <View style={[styles.demo, { borderColor: c.outline, backgroundColor: pressed ? c.fill : c.fillTertiary }]}>
+          <Text variant="footnote" style={{ flex: 1 }}>
+            <Text variant="footnote" weight="700">
+              Sample data.{' '}
             </Text>
-          </View>
-        }
-        title={`${payees} new payee${payees === 1 ? '' : 's'} to sort`}
-        subtitle={`${payments} payment${payments === 1 ? '' : 's'} · one tap each, remembered`}
-        chevron
-        onPress={() => router.push('/review')}
-      />
-    </Section>
+            Set up capture to fill this with your real payments.
+          </Text>
+          <Text variant="footnote" weight="700" color="tint">
+            Set up
+          </Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
 function EmptyState() {
+  const c = useColors();
   return (
-    <Card style={styles.banner}>
-      <Text display variant="title2">
+    <Card tone="clay" style={styles.banner}>
+      <Text display variant="title2" style={{ color: c.onTint }}>
         Your Gullak is empty
       </Text>
-      <Text variant="subheadline" color="secondaryLabel" style={{ marginTop: 4, marginBottom: 14 }}>
-        Set up the Shortcut once and every bank SMS shows up here within seconds.
+      <MatkaBand color={c.cream} style={{ marginVertical: 10, opacity: 0.9 }} />
+      <Text variant="subheadline" style={{ color: c.onTint, marginBottom: 16 }}>
+        Not a single coin yet. Set up capture once and every bank SMS drops in here within seconds.
       </Text>
-      <Button title="Set Up Capture" onPress={() => router.push('/setup')} />
+      <Button title="Set Up Capture" kind="gray" onPress={() => router.push('/setup')} style={{ backgroundColor: c.cream }} />
     </Card>
   );
 }
 
+// The pot: the month's spend painted on clay, with the cream wave band from the mascot's belly.
 function Hero({ s }: { s: MonthSummary }) {
   const c = useColors();
   const up = (s.changeVsLastMonth ?? 0) > 0;
   return (
-    <Card style={styles.hero}>
-      <Text variant="subheadline" color="secondaryLabel">
-        Spent in {monthName(s.month)}
-      </Text>
-      <Text rounded tabular style={styles.heroAmount}>
+    <Card tone="clay" style={styles.hero}>
+      <View style={styles.heroTop}>
+        <Text variant="subheadline" weight="600" style={{ color: c.onTint, opacity: 0.85 }}>
+          Spent in {monthName(s.month)}
+        </Text>
+        <Coin size={26} />
+      </View>
+      <Text pixel style={[styles.heroAmount, { color: c.onTint }]}>
         {money(s.spent, { whole: true })}
       </Text>
+      <MatkaBand color={c.cream} style={styles.heroBand} />
       {s.changeVsLastMonth != null ? (
-        <View style={[styles.pill, { backgroundColor: `${up ? c.red : c.green}1F` }]}>
-          <Text variant="footnote" weight="600" style={{ color: up ? c.red : c.green }}>
-            {up ? '▲' : '▼'} {Math.abs(s.changeVsLastMonth)}%
-          </Text>
-          <Text variant="footnote" color="secondaryLabel">
-            {s.projected != null ? 'vs same days last month' : `vs ${shortMonth(addMonths(s.month, -1))}`}
+        <View style={styles.heroFoot}>
+          <View style={[styles.pill, { backgroundColor: c.cream, borderColor: c.outline }]}>
+            <Text variant="footnote" weight="700" style={{ color: up ? '#A8341A' : '#1F6E1D' }}>
+              {up ? '▲' : '▼'} {Math.abs(s.changeVsLastMonth)}%
+            </Text>
+          </View>
+          <Text variant="footnote" style={{ color: c.onTint, opacity: 0.85, flexShrink: 1 }}>
+            {s.projected != null ? 'vs the same days last month' : `vs ${shortMonth(addMonths(s.month, -1))}`}
           </Text>
         </View>
       ) : (
-        <Text variant="footnote" color="secondaryLabel">
+        <Text variant="footnote" style={{ color: c.onTint, opacity: 0.85 }}>
           {s.count} payment{s.count === 1 ? '' : 's'}
         </Text>
       )}
@@ -332,39 +372,47 @@ function Hero({ s }: { s: MonthSummary }) {
 function Stat({ label, value, hint, tint }: { label: string; value: string; hint?: string; tint?: 'green' | 'red' }) {
   return (
     <View style={styles.statCell}>
-      <Card style={styles.stat}>
-        <Text variant="footnote" color="secondaryLabel">
-          {label}
+      <Text variant="footnote" color="secondaryLabel">
+        {label}
+      </Text>
+      <Text pixel variant="title3" color={tint ?? 'label'} style={{ marginTop: 2 }} numberOfLines={1}>
+        {value}
+      </Text>
+      {hint ? (
+        <Text variant="caption1" color="secondaryLabel" style={{ marginTop: 1 }} numberOfLines={1}>
+          {hint}
         </Text>
-        <Text variant="title3" rounded tabular color={tint ?? 'label'} style={{ marginTop: 4 }} numberOfLines={1}>
-          {value}
-        </Text>
-        {hint ? (
-          <Text variant="caption1" color="secondaryLabel" style={{ marginTop: 2 }} numberOfLines={1}>
-            {hint}
-          </Text>
-        ) : null}
-      </Card>
+      ) : null}
     </View>
   );
 }
 
+// Four numbers in one outlined block, split by hairlines: they're read together, not tapped.
 function StatGrid({ s }: { s: MonthSummary }) {
+  const c = useColors();
+  const line = { backgroundColor: c.separator };
   return (
-    <View style={styles.grid}>
-      <Stat label="Received" value={money(s.received, { whole: true })} tint="green" hint={`Net ${money(s.net, { whole: true })}`} />
-      <Stat label="Daily average" value={money(s.dailyAverage, { whole: true })} hint={`over ${s.daysCounted} days`} />
-      {s.projected != null ? (
-        <Stat label="Projected" value={money(s.projected, { whole: true })} hint="by month end" />
-      ) : (
-        <Stat label="Payments" value={String(s.count)} hint="this month" />
-      )}
-      <Stat
-        label="Monthly average"
-        value={s.averageMonth != null ? money(s.averageMonth, { whole: true }) : '—'}
-        hint="previous 3 months"
-      />
-    </View>
+    <Sticker style={styles.grid} radius={layout.radius}>
+      <View style={styles.gridRow}>
+        <Stat label="Received" value={money(s.received, { whole: true })} tint="green" hint={`Net ${money(s.net, { whole: true })}`} />
+        <View style={[styles.vLine, line]} />
+        <Stat label="Daily average" value={money(s.dailyAverage, { whole: true })} hint={`over ${s.daysCounted} days`} />
+      </View>
+      <View style={[styles.hLine, line]} />
+      <View style={styles.gridRow}>
+        {s.projected != null ? (
+          <Stat label="Projected" value={money(s.projected, { whole: true })} hint="by month end" />
+        ) : (
+          <Stat label="Payments" value={String(s.count)} hint="this month" />
+        )}
+        <View style={[styles.vLine, line]} />
+        <Stat
+          label="Monthly average"
+          value={s.averageMonth != null ? money(s.averageMonth, { whole: true }) : '—'}
+          hint="previous 3 months"
+        />
+      </View>
+    </Sticker>
   );
 }
 
@@ -388,8 +436,10 @@ function DailyChart({ s }: { s: MonthSummary }) {
             <View
               style={{
                 height: `${Math.max(v > 0 ? 4 : 1.5, (v / max) * 100)}%`,
-                borderRadius: 2,
-                backgroundColor: i + 1 === today ? c.tint : v > 0 ? `${c.tint}80` : c.fillTertiary,
+                borderRadius: 1,
+                backgroundColor: i + 1 === today ? c.gold : v > 0 ? `${c.tint}99` : c.fillTertiary,
+                borderWidth: i + 1 === today ? 1.5 : 0,
+                borderColor: c.outline,
               }}
             />
           </View>
@@ -425,16 +475,7 @@ function Categories({ s }: { s: MonthSummary }) {
                   {money(cat.amount, { whole: true })}
                 </Text>
               </View>
-              <View style={[styles.track, { backgroundColor: c.fillTertiary }]}>
-                <View
-                  style={{
-                    width: `${Math.max(2, cat.share * 100)}%`,
-                    height: '100%',
-                    borderRadius: 3,
-                    backgroundColor: c[categoryMeta(cat.category).color],
-                  }}
-                />
-              </View>
+              <PixelBar value={cat.share} color={c[categoryMeta(cat.category).color]} />
               <Text variant="caption1" color="secondaryLabel">
                 {Math.round(cat.share * 100)}% · {cat.count} payment{cat.count === 1 ? '' : 's'}
               </Text>
@@ -470,24 +511,46 @@ function Merchants({ s }: { s: MonthSummary }) {
 
 const styles = StyleSheet.create({
   banner: { marginHorizontal: layout.inset, marginBottom: 20 },
-  hero: { marginHorizontal: layout.inset, marginBottom: 12, alignItems: 'flex-start', gap: 4 },
-  heroAmount: { fontSize: 44, lineHeight: 52, fontWeight: '700', letterSpacing: -0.5 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: layout.inset - 6, marginBottom: 12 },
-  statCell: { width: '50%', padding: 6 },
-  stat: { padding: 14 },
+  greet: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: layout.inset + 2, paddingTop: 4, paddingBottom: 16 },
+  greetAvatar: { width: 54, height: 54, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  greetMascot: { width: 50, height: 50 },
+  greetTitle: { fontSize: 32, lineHeight: 38 },
+  quick: { flexDirection: 'row', gap: 8, marginHorizontal: layout.inset, marginBottom: 16 },
+  quickCell: { flex: 1, minWidth: 0 },
+  quickCard: { paddingVertical: 12, paddingHorizontal: 10, gap: 2, minHeight: 92 },
+  quickIcon: { fontSize: 22, lineHeight: 28, marginBottom: 4 },
+  demo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: layout.inset,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+  },
+  hero: { marginHorizontal: layout.inset, marginBottom: 14, paddingTop: 14, paddingBottom: 16, gap: 2 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroAmount: { fontSize: 54, lineHeight: 62 },
+  heroBand: { marginTop: 4, marginBottom: 12, opacity: 0.9 },
+  heroFoot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pill: { borderRadius: 8, borderWidth: 1.5, paddingHorizontal: 7, paddingVertical: 2 },
+  grid: { marginHorizontal: layout.inset, marginBottom: 20 },
+  gridRow: { flexDirection: 'row' },
+  statCell: { flex: 1, paddingHorizontal: 14, paddingVertical: 12 },
+  vLine: { width: StyleSheet.hairlineWidth * 2 },
+  hLine: { height: StyleSheet.hairlineWidth * 2 },
   chartCard: { marginHorizontal: layout.inset, marginBottom: 35 },
   chartHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   chart: { height: 90, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   barSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' },
   chartAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   catTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  track: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  reviewDot: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  add: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  reviewDot: { width: 30, height: 30, borderRadius: 9, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   jarsHead: { marginHorizontal: layout.inset + 16, marginBottom: 6 },
   jarsAll: { marginHorizontal: layout.inset + 16, marginTop: -4 },
-  addPlus: { color: '#fff', fontSize: 22, lineHeight: 24 },
   trend: { height: 130, flexDirection: 'row', gap: 8 },
   trendSlot: { flex: 1, alignItems: 'center', gap: 4 },
   trendBarArea: { flex: 1, width: '100%', justifyContent: 'flex-end' },

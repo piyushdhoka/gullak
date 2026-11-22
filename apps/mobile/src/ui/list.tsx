@@ -1,9 +1,10 @@
-// iOS inset-grouped list: Section > Row, like Settings.app.
+// Inset-grouped list: Section > Row, like Settings.app, drawn as an outlined sticker.
 
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, View, type ViewStyle } from 'react-native';
 
 import { Chevron } from './icons';
+import { Sticker } from './sticker';
 import { Text } from './text';
 import { layout, useColors, type ColorName } from './theme';
 
@@ -26,11 +27,11 @@ export function Section({
   return (
     <View style={[styles.section, style]}>
       {header ? (
-        <Text variant="footnote" color="secondaryLabel" style={styles.header}>
+        <Text variant="footnote" weight="600" color="secondaryLabel" style={styles.header} accessibilityRole="header">
           {header}
         </Text>
       ) : null}
-      <View style={[styles.group, { backgroundColor: c.card }]}>
+      <Sticker radius={layout.radius}>
         {items.map((child, i) => (
           <Fragment key={child.key ?? i}>
             {child}
@@ -44,7 +45,7 @@ export function Section({
             ) : null}
           </Fragment>
         ))}
-      </View>
+      </Sticker>
       {footer ? (
         typeof footer === 'string' ? (
           <Text variant="footnote" color="secondaryLabel" style={styles.footer}>
@@ -164,13 +165,16 @@ export function SwitchRow({
 
 /** A rounded-square coloured icon, as used in Settings.app. */
 export function IconTile({ color, children, size = 30 }: { color: string; children: ReactNode; size?: number }) {
+  const c = useColors();
   return (
     <View
       style={{
         width: size,
         height: size,
-        borderRadius: size * 0.23,
+        borderRadius: size * 0.26,
         backgroundColor: color,
+        borderWidth: 1.5,
+        borderColor: c.outline,
         alignItems: 'center',
         justifyContent: 'center',
       }}>
@@ -183,7 +187,6 @@ const styles = StyleSheet.create({
   section: { marginHorizontal: layout.inset, marginBottom: 35 },
   header: { paddingHorizontal: layout.inset, paddingBottom: 7 },
   footer: { paddingHorizontal: layout.inset, paddingTop: 7 },
-  group: { borderRadius: layout.radius, overflow: 'hidden' },
   separator: { height: StyleSheet.hairlineWidth, marginRight: 0 },
   row: {
     minHeight: layout.rowMinHeight,

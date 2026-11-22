@@ -1,4 +1,4 @@
-// Web build: an iOS-style translucent tab bar.
+// Web build: a translucent tab bar on the cream page; the selected tab sits in a clay sticker.
 
 import { BlurView } from 'expo-blur';
 import { TabList, TabSlot, TabTrigger, Tabs, type TabListProps, type TabTriggerSlotProps } from 'expo-router/ui';
@@ -45,7 +45,7 @@ function TabBar({ children, style: _slotStyle, ...rest }: TabListProps) {
       <BlurView intensity={60} tint="systemChromeMaterial" style={StyleSheet.absoluteFill}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: c.chrome }]} />
       </BlurView>
-      <View style={[styles.hairline, { backgroundColor: c.separator }]} />
+      <View style={[styles.hairline, { backgroundColor: c.outline }]} />
       <View style={[styles.items, { paddingBottom: insets.bottom }]}>{children}</View>
     </View>
   );
@@ -56,11 +56,17 @@ const TabButton = forwardRef<ComponentRef<typeof Pressable>, TabTriggerSlotProps
   ref,
 ) {
   const c = useColors();
-  const color = isFocused ? c.tint : c.gray;
+  const color = isFocused ? c.tint : c.secondaryLabel;
   return (
     <Pressable ref={ref} {...props} style={styles.button} accessibilityRole="tab" accessibilityState={{ selected: isFocused }}>
-      <Icon color={color} filled={isFocused} size={25} />
-      <Text variant="caption2" weight="500" style={{ color, marginTop: 2 }}>
+      <View
+        style={[
+          styles.iconWrap,
+          isFocused && { backgroundColor: `${c.tint}1F`, borderColor: c.outline },
+        ]}>
+        <Icon color={color} filled={isFocused} size={22} />
+      </View>
+      <Text variant="caption2" weight={isFocused ? '700' : '500'} style={{ color: isFocused ? c.label : c.secondaryLabel }}>
         {label}
       </Text>
     </Pressable>
@@ -69,7 +75,7 @@ const TabButton = forwardRef<ComponentRef<typeof Pressable>, TabTriggerSlotProps
 
 const styles = StyleSheet.create({
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden' },
-  hairline: { position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth },
+  hairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 2 },
   items: {
     flex: 1,
     flexDirection: 'row',
@@ -77,5 +83,14 @@ const styles = StyleSheet.create({
     maxWidth: layout.maxWidth,
     alignSelf: 'center',
   },
-  button: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 5 },
+  button: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4, gap: 1 },
+  iconWrap: {
+    width: 44,
+    height: 26,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
 });

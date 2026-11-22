@@ -2,9 +2,17 @@
 
 import { NativeTabs } from 'expo-router/native-tabs';
 
+import { bodyFont, useColors } from '@/ui/theme';
+
 export default function AppTabs() {
+  const c = useColors();
   return (
-    <NativeTabs>
+    <NativeTabs
+      tintColor={c.tint}
+      backgroundColor={c.groupedBackground}
+      iconColor={{ default: c.secondaryLabel, selected: c.tint }}
+      labelStyle={{ fontFamily: bodyFont('600'), fontSize: 11, color: c.secondaryLabel }}
+      indicatorColor={`${c.tint}26`}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Summary</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.pie.fill" />

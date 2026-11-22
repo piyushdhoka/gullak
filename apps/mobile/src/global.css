@@ -28,10 +28,20 @@
   unicode-range: U+0900-097F, U+1CD0-1CF4, U+1CF7-1CF9, U+200C-200D, U+20A8, U+20F0, U+25CC, U+A830-A839,
     U+A8E0-A8FF;
 }
+/* The pixel display face (titles, amounts): Jersey 10, a scoreboard-style pixel face with unambiguous digits.
+   Devanagari falls back to Noto. */
+@font-face {
+  font-family: 'Jersey 10';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/jersey-10.ttf') format('truetype');
+  unicode-range: U+0000-00FF, U+2013-2014, U+2018-201E, U+2022, U+2026, U+20B9, U+2190-2193, U+2212;
+}
 
 html,
 body {
-  background-color: #f2f2f7;
+  background-color: #fcefd9;
   font-family: Geist, 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -42,8 +52,14 @@ body {
 @media (prefers-color-scheme: dark) {
   html,
   body {
-    background-color: #000000;
+    background-color: #1b100c;
   }
+}
+
+/* Keyboard focus: a coin-gold ring, visible on clay, cream and kiln-dark alike. */
+:focus-visible {
+  outline: 3px solid #f5a90f;
+  outline-offset: 2px;
 }
 
 input,
@@ -54,4 +70,23 @@ textarea {
 input:focus,
 textarea:focus {
   outline: none;
+}
+
+/* Browser autofill (saved email / password) would paint the field yellow: keep the field's own colours. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1c0f0c;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  caret-color: #d2461e;
+  transition: background-color 9999s ease-out 0s;
+}
+@media (prefers-color-scheme: dark) {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #fbf1e6;
+    -webkit-box-shadow: 0 0 0 1000px #352015 inset;
+    caret-color: #ff7a4d;
+  }
 }

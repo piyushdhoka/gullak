@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { explainCategory, type Explanation } from '@gullak/core';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { CategoryTile } from '@/components/txn-row';
 import { CATEGORIES } from '@/lib/categories';
@@ -10,6 +11,7 @@ import { accountLabel, displayName, fullDate, signedMoney } from '@/lib/format';
 import { isDemo, supabase } from '@/lib/api';
 import { Row, Section, SwitchRow } from '@/ui/list';
 import { Screen } from '@/ui/screen';
+import { PixelBar, Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { fontFamily, layout, type, useColors } from '@/ui/theme';
 
@@ -26,8 +28,8 @@ const SOURCE_LABEL: Record<string, string | undefined> = {
   user: 'Chosen by you',
   merchant: 'Known merchant',
   heuristic: undefined,
-  model: 'Guessed automatically, check it',
-  unknown: 'Tap Change to pick one; it’s remembered for this payee',
+  model: 'Guessed by Gullak. Check it',
+  unknown: 'Pick one below. Gullak remembers it for this payee',
 };
 
 type Odds = { category: string; p: number }[];
@@ -59,41 +61,91 @@ function useOdds(id: string | undefined, payeeKey: string | null | undefined): O
 
 const pct = (p: number) => (p >= 0.995 ? '99%' : p < 0.01 ? '<1%' : `${Math.round(p * 100)}%`);
 
-/** "Why?": the reason for the category, the AI's odds when there are any, and three one-tap fixes. */
+/** The torn bottom edge of a paper bill. Stretches to its box. */
+function Zigzag({ color, outline }: { color: string; outline: string }) {
+  const teeth = 18;
+  const w = teeth * 12;
+  let fill = 'M0 0';
+  let line = 'M0 1';
+  for (let i = 0; i < teeth; i++) {
+    fill += ` L${i * 12 + 6} 9 L${i * 12 + 12} 0`;
+    line += ` L${i * 12 + 6} 9 L${i * 12 + 12} 1`;
+  }
+  return (
+    <Svg width="100%" height={11} viewBox={`0 0 ${w} 11`} preserveAspectRatio="none" style={{ marginTop: -1 }}>
+      <Path d={`${fill} Z`} fill={color} />
+      <Path d={line} stroke={outline} strokeWidth={2} fill="none" strokeLinejoin="miter" />
+    </Svg>
+  );
+}
+
+/** A row of dashes, like the perforation on a receipt. */
+function Perforation() {
+  const c = useColors();
+  return (
+    <View style={styles.perf} accessible={false}>
+      {Array.from({ length: 28 }, (_, i) => (
+        <View key={i} style={[styles.perfDash, { backgroundColor: c.separator }]} />
+      ))}
+    </View>
+  );
+}
+
+/** "Why?": the reason for the category, the AI's odds when there are any, and one-tap fixes. */
 function Why({ why, odds, current, onPick }: { why: Explanation; odds: Odds | null; current: string; onPick: (category: string) => void }) {
   const c = useColors();
-  const chips: { category: string; p?: number }[] = odds
-    ? odds.filter((o) => o.category !== current).slice(0, 3)
-    : why.alternatives.map((category) => ({ category }));
-  const mine = odds?.find((o) => o.category === current);
+  const options: { category: string; p?: number }[] = odds
+    ? odds.slice(0, 4)
+    : [{ category: current }, ...why.alternatives.filter((x) => x !== current).map((category) => ({ category }))].slice(0, 4);
   return (
     <Section header="Why this category?">
       <View style={styles.why}>
         <Text variant="subheadline">{why.reason}</Text>
-        {mine ? (
+        {odds ? (
           <Text variant="footnote" color="secondaryLabel">
-            Gullak’s AI rates {current} at {pct(mine.p)}. Other options:
+            How sure Gullak’s AI is. Tap another to switch.
           </Text>
-        ) : null}
-        <View style={styles.whyChips}>
-          {chips.map(({ category, p }) => (
-            <Pressable
-              key={category}
-              onPress={() => onPick(category)}
-              accessibilityRole="button"
-              accessibilityLabel={`Change to ${category}`}
-              style={({ pressed }) => [styles.whyChip, { backgroundColor: c.fillTertiary, opacity: pressed ? 0.6 : 1 }]}>
-              <CategoryTile category={category} size={22} />
-              <Text variant="footnote" weight="600">
-                {category}
-              </Text>
-              {p != null ? (
-                <Text variant="footnote" color="secondaryLabel" tabular>
-                  {pct(p)}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
+        ) : (
+          <Text variant="footnote" color="secondaryLabel">
+            Not right? Tap the one it should be.
+          </Text>
+        )}
+        <View style={{ gap: 6 }}>
+          {options.map(({ category, p }) => {
+            const selected = category === current;
+            return (
+              <Pressable
+                key={category}
+                onPress={() => !selected && onPick(category)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${category}${p != null ? `, ${pct(p)}` : ''}${selected ? ', current category' : ', switch to this'}`}
+                style={({ pressed }) => [
+                  styles.option,
+                  { borderColor: selected ? c.outline : c.separator, backgroundColor: selected ? `${c.tint}14` : 'transparent' },
+                  pressed && !selected && { backgroundColor: c.fillTertiary },
+                ]}>
+                <CategoryTile category={category} size={26} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  <View style={styles.optionTop}>
+                    <Text variant="subheadline" weight={selected ? '700' : '500'} style={{ flex: 1 }}>
+                      {category}
+                    </Text>
+                    {p != null ? (
+                      <Text pixel variant="subheadline" color={selected ? 'tint' : 'secondaryLabel'}>
+                        {pct(p)}
+                      </Text>
+                    ) : selected ? (
+                      <Text variant="footnote" weight="600" color="tint">
+                        Current
+                      </Text>
+                    ) : null}
+                  </View>
+                  {p != null ? <PixelBar value={p} color={selected ? c.tint : c.gray} height={6} blocks={24} /> : null}
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
     </Section>
@@ -101,6 +153,7 @@ function Why({ why, odds, current, onPick }: { why: Explanation; odds: Odds | nu
 }
 
 export default function TransactionScreen() {
+  const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transactions, setCategory, updateTransaction } = useData();
   const t = transactions.find((x) => x.id === id);
@@ -127,65 +180,118 @@ export default function TransactionScreen() {
   if (!t) {
     return (
       <Screen title="Payment" largeTitle={false} back="Back" tabBar={false}>
-        <Text color="secondaryLabel" align="center" style={{ marginTop: 40 }}>
-          This payment isn’t loaded.
-        </Text>
+        <View style={styles.missing}>
+          <Text pixel variant="title2" align="center">
+            Hmm, no coin here
+          </Text>
+          <Text color="secondaryLabel" align="center">
+            This payment isn’t loaded. Pull down on Activity to refresh, then try again.
+          </Text>
+        </View>
       </Screen>
     );
   }
 
   const samePayee = t.payee_key ? transactions.filter((x) => x.payee_key === t.payee_key).length : 0;
+  const needsCategory = t.category_source === 'unknown';
+  const credit = t.direction === 'credit';
 
   return (
     <Screen title={displayName(t)} largeTitle={false} back="Back" tabBar={false}>
-      <View style={styles.head}>
-        <CategoryTile category={t.category} size={60} />
-        <Text variant="title3" align="center" style={{ marginTop: 12 }}>
-          {displayName(t)}
-        </Text>
-        <Text
-          rounded
-          tabular
-          color={t.direction === 'credit' ? 'green' : 'label'}
-          style={[styles.amount, t.hidden && { opacity: 0.4 }]}>
-          {signedMoney(t)}
-        </Text>
-        <Text variant="subheadline" color="secondaryLabel">
-          {fullDate(t.occurred_at)}
-        </Text>
+      {/* The receipt: the one bold thing on this screen. */}
+      <View style={styles.receiptWrap}>
+        <Sticker radius={16} style={styles.receipt} lift={0}>
+          <View style={styles.receiptTop}>
+            <CategoryTile category={needsCategory ? 'Other' : t.category} size={56} />
+            <Text pixel variant="title2" align="center" numberOfLines={2} style={{ marginTop: 10 }}>
+              {displayName(t)}
+            </Text>
+            <Text variant="footnote" color="secondaryLabel" align="center">
+              {fullDate(t.occurred_at)}
+            </Text>
+            <Text
+              pixel
+              color={credit ? 'green' : 'label'}
+              style={[styles.amount, t.hidden && { opacity: 0.4, textDecorationLine: 'line-through' }]}
+              accessibilityLabel={`${credit ? 'Received' : 'Paid'} ${signedMoney(t).slice(1)}`}>
+              {signedMoney(t)}
+            </Text>
+            {t.hidden ? (
+              <Text variant="footnote" weight="600" color="secondaryLabel">
+                Hidden from totals
+              </Text>
+            ) : null}
+          </View>
+
+          <Perforation />
+
+          <Pressable
+            onPress={() => setPicking((p) => !p)}
+            accessibilityRole="button"
+            accessibilityLabel={`Category ${needsCategory ? 'not set' : t.category}. ${picking ? 'Close the list' : 'Change it'}`}
+            style={({ pressed }) => [styles.catRow, pressed && { backgroundColor: c.fillTertiary }]}>
+            <View style={{ flex: 1 }}>
+              <Text variant="footnote" color="secondaryLabel">
+                Category
+              </Text>
+              <Text variant="headline" color={needsCategory ? 'orange' : 'label'}>
+                {needsCategory ? 'Needs a category' : t.category}
+              </Text>
+              {SOURCE_LABEL[t.category_source] ? (
+                <Text variant="caption1" color="secondaryLabel">
+                  {SOURCE_LABEL[t.category_source]}
+                </Text>
+              ) : null}
+            </View>
+            <View style={[styles.changeChip, { borderColor: c.outline, backgroundColor: picking ? c.tint : 'transparent' }]}>
+              <Text variant="footnote" weight="700" style={{ color: picking ? c.onTint : c.label }}>
+                {picking ? 'Done' : 'Change'}
+              </Text>
+            </View>
+          </Pressable>
+
+          {picking ? (
+            <View style={styles.grid}>
+              {CATEGORIES.map((cat) => {
+                const selected = cat === t.category && !needsCategory;
+                return (
+                  <Pressable
+                    key={cat}
+                    onPress={() => {
+                      setCategory(t.id, cat, applyAll);
+                      setPicking(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={cat}
+                    style={({ pressed }) => [
+                      styles.tile,
+                      { borderColor: selected ? c.outline : c.separator, backgroundColor: selected ? `${c.tint}1F` : c.card },
+                      pressed && { backgroundColor: c.fillTertiary },
+                    ]}>
+                    <CategoryTile category={cat} size={30} />
+                    <Text variant="caption1" weight={selected ? '700' : '500'} numberOfLines={1}>
+                      {cat}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+        </Sticker>
+        <Zigzag color={c.card} outline={c.outline} />
       </View>
 
-      <Section header="Category">
-        <Row
-          left={<CategoryTile category={t.category} />}
-          title={t.category_source === 'unknown' ? 'Needs a category' : t.category}
-          subtitle={SOURCE_LABEL[t.category_source]}
-          value={picking ? 'Done' : 'Change'}
-          onPress={() => setPicking((p) => !p)}
-        />
-        {picking
-          ? CATEGORIES.map((cat) => (
-              <Row
-                key={cat}
-                left={<CategoryTile category={cat} size={28} />}
-                title={cat}
-                checked={cat === t.category}
-                onPress={() => {
-                  setCategory(t.id, cat, applyAll);
-                  setPicking(false);
-                }}
-              />
-            ))
-          : null}
-        {t.payee_key ? (
+      {t.payee_key ? (
+        <Section>
           <SwitchRow
             title="Remember for this payee"
             subtitle={samePayee > 1 ? `Also updates ${samePayee - 1} other payment${samePayee > 2 ? 's' : ''}` : 'Future payments use it too'}
             value={applyAll}
             onValueChange={setApplyAll}
           />
-        ) : null}
-      </Section>
+        </Section>
+      ) : null}
 
       <Why
         why={explainCategory(
@@ -237,20 +343,41 @@ function NoteField({ initial, onSave }: { initial: string; onSave: (note: string
       value={note}
       onChangeText={setNote}
       onBlur={() => onSave(note.trim())}
-      placeholder="Add a note"
-      placeholderTextColor={c.tertiaryLabel}
+      placeholder="Add a note, like “Goa trip dinner”"
+      placeholderTextColor={c.placeholder}
+      accessibilityLabel="Note"
       multiline
-      style={[type.body, styles.note, { color: c.label, fontFamily }]}
+      selectionColor={c.tint}
+      style={[type.body, styles.note, { color: c.label, fontFamily, backgroundColor: c.cardElevated, borderColor: c.separator }]}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  why: { padding: layout.inset, gap: 12 },
-  whyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  whyChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, borderRadius: 16 },
-  head: { alignItems: 'center', paddingHorizontal: layout.inset, paddingTop: 16, paddingBottom: 28 },
-  amount: { fontSize: 40, lineHeight: 48, fontWeight: '700', marginTop: 6 },
-  note: { minHeight: 44, paddingHorizontal: layout.inset, paddingVertical: 11 },
+  missing: { paddingHorizontal: layout.inset * 2, paddingTop: 60, gap: 8 },
+  receiptWrap: { marginHorizontal: layout.inset, marginTop: 8, marginBottom: 28 },
+  receipt: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: 0 },
+  receiptTop: { alignItems: 'center', paddingHorizontal: layout.inset, paddingTop: 20, paddingBottom: 18, gap: 2 },
+  amount: { fontSize: 46, lineHeight: 56, marginTop: 8 },
+  perf: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14 },
+  perfDash: { width: 6, height: 2, borderRadius: 1 },
+  catRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: layout.inset, paddingVertical: 14 },
+  changeChip: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingBottom: 14 },
+  tile: {
+    width: '23%',
+    flexGrow: 1,
+    minWidth: 72,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  why: { padding: layout.inset, gap: 10 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, borderWidth: 1.5 },
+  optionTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  note: { minHeight: 72, margin: 12, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 2, textAlignVertical: 'top' },
   sms: { padding: layout.inset },
 });

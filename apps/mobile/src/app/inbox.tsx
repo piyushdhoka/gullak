@@ -1,47 +1,76 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { ReviewMascot } from '@/components/review-parts';
 import { useData } from '@/lib/data';
 import { fullDate } from '@/lib/format';
 import { copyText } from '@/lib/push';
-import { Button } from '@/ui/controls';
-import { Section } from '@/ui/list';
+import { Badge, Button, Card } from '@/ui/controls';
 import { Screen } from '@/ui/screen';
+import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
-import { layout } from '@/ui/theme';
+import { layout, useColors } from '@/ui/theme';
 
 export default function InboxScreen() {
+  const c = useColors();
   const { inbox, dismissSms } = useData();
   const [copied, setCopied] = useState<string | null>(null);
   return (
-    <Screen title="Not Recognised" largeTitle={false} back="Settings" tabBar={false}>
-      <Text variant="subheadline" color="secondaryLabel" style={styles.intro}>
-        Bank messages the parser couldn’t turn into a payment. Copy one and share it so its format can be supported.
-      </Text>
-      {inbox.length === 0 ? (
-        <Text color="secondaryLabel" align="center" style={{ marginTop: 32 }}>
-          Nothing here. Every bank SMS was understood.
+    <Screen title="Not recognised" largeTitle={false} back="Settings" tabBar={false}>
+      <View style={styles.intro}>
+        <Text variant="title3" weight="600">
+          {inbox.length ? (
+            <>
+              <Text pixel variant="title3" color="tint">
+                {inbox.length}
+              </Text>
+              {` message${inbox.length === 1 ? '' : 's'} Gullak couldn’t read`}
+            </>
+          ) : (
+            'Messages Gullak couldn’t read'
+          )}
         </Text>
+        <Text variant="subheadline" color="secondaryLabel" style={{ marginTop: 4 }}>
+          Bank texts that didn’t turn into a payment. Copy one and send it over so its format can be supported.
+        </Text>
+      </View>
+
+      {inbox.length === 0 ? (
+        <Card style={styles.empty}>
+          <ReviewMascot size={72} />
+          <Text display variant="title3" align="center" style={styles.emptyTitle}>
+            Nothing stuck in the pot
+          </Text>
+          <Text variant="subheadline" color="secondaryLabel" align="center">
+            Every bank SMS so far became a payment. If one ever doesn’t, it waits here for you.
+          </Text>
+        </Card>
       ) : (
         inbox.map((m) => (
-          <Section key={m.id} header={`${fullDate(m.received_at)}${m.reason ? ` · ${m.reason}` : ''}`}>
-            <View style={styles.body}>
+          <Sticker key={m.id} radius={layout.radius} style={styles.card}>
+            <View style={styles.head}>
+              <Text variant="footnote" weight="600" color="secondaryLabel" style={{ flexShrink: 1 }} numberOfLines={1}>
+                {fullDate(m.received_at)}
+              </Text>
+              {m.reason ? <Badge text={m.reason} tint="orange" /> : null}
+            </View>
+            <View style={[styles.bubble, { backgroundColor: c.fillTertiary }]}>
               <Text variant="subheadline" selectable>
                 {m.body}
               </Text>
-              <View style={styles.actions}>
-                <Button
-                  title={copied === m.id ? 'Copied' : 'Copy'}
-                  kind="gray"
-                  size="small"
-                  onPress={async () => {
-                    if (await copyText(m.body)) setCopied(m.id);
-                  }}
-                />
-                <Button title="Dismiss" kind="tinted" tint="red" size="small" onPress={() => dismissSms(m.id)} />
-              </View>
             </View>
-          </Section>
+            <View style={styles.actions}>
+              <Button
+                title={copied === m.id ? 'Copied ✓' : 'Copy'}
+                kind="tinted"
+                size="small"
+                onPress={async () => {
+                  if (await copyText(m.body)) setCopied(m.id);
+                }}
+              />
+              <Button title="Dismiss" kind="plain" tint="red" size="small" onPress={() => dismissSms(m.id)} />
+            </View>
+          </Sticker>
         ))
       )}
     </Screen>
@@ -50,6 +79,10 @@ export default function InboxScreen() {
 
 const styles = StyleSheet.create({
   intro: { paddingHorizontal: layout.inset + 4, paddingTop: 12, marginBottom: 20 },
-  body: { padding: layout.inset, gap: 12 },
+  empty: { marginHorizontal: layout.inset, paddingVertical: 24, gap: 6 },
+  emptyTitle: { fontSize: 22, lineHeight: 28, marginTop: 10 },
+  card: { marginHorizontal: layout.inset, marginBottom: 16, padding: 14, gap: 10 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  bubble: { borderRadius: 12, borderTopLeftRadius: 4, padding: 12 },
   actions: { flexDirection: 'row', gap: 8 },
 });

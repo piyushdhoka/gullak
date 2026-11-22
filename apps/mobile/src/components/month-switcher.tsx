@@ -3,36 +3,62 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { monthName } from '@/lib/format';
 import { addMonths, monthOf, sameMonth, type Month } from '@/lib/stats';
 import { BackChevron, Chevron } from '@/ui/icons';
+import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
 
 export function MonthSwitcher({ month, onChange, earliest }: { month: Month; onChange: (m: Month) => void; earliest?: Month }) {
-  const c = useColors();
   const now = monthOf(new Date());
   const atLatest = sameMonth(month, now);
   const atEarliest = earliest ? sameMonth(month, earliest) : false;
+  const otherYear = month.year !== now.year;
   return (
     <View style={styles.wrap}>
-      <Pressable
-        onPress={() => onChange(addMonths(month, -1))}
+      <Arrow
+        dir="back"
         disabled={atEarliest}
-        hitSlop={10}
-        accessibilityLabel="Previous month"
-        style={({ pressed }) => [styles.arrow, { backgroundColor: c.fillTertiary, opacity: atEarliest ? 0.3 : pressed ? 0.5 : 1 }]}>
-        <BackChevron color={c.tint} size={14} />
-      </Pressable>
-      <Text variant="headline" style={styles.label}>
-        {monthName(month, month.year !== now.year)}
-      </Text>
-      <Pressable
-        onPress={() => onChange(addMonths(month, 1))}
+        label={`Previous month, ${monthName(addMonths(month, -1), true)}`}
+        onPress={() => onChange(addMonths(month, -1))}
+      />
+      <View style={styles.label} accessibilityRole="header" accessibilityLabel={monthName(month, true)}>
+        <Text pixel variant="title3" numberOfLines={1}>
+          {monthName(month)}
+        </Text>
+        {otherYear ? (
+          <Text pixel variant="footnote" color="secondaryLabel">
+            {month.year}
+          </Text>
+        ) : null}
+      </View>
+      <Arrow
+        dir="next"
         disabled={atLatest}
-        hitSlop={10}
-        accessibilityLabel="Next month"
-        style={({ pressed }) => [styles.arrow, { backgroundColor: c.fillTertiary, opacity: atLatest ? 0.3 : pressed ? 0.5 : 1 }]}>
-        <Chevron color={c.tint} size={14} />
-      </Pressable>
+        label={`Next month, ${monthName(addMonths(month, 1), true)}`}
+        onPress={() => onChange(addMonths(month, 1))}
+      />
     </View>
+  );
+}
+
+// A small outlined key, like the mascot's sticker buttons: it presses down onto its shadow.
+function Arrow({ dir, disabled, label, onPress }: { dir: 'back' | 'next'; disabled: boolean; label: string; onPress: () => void }) {
+  const c = useColors();
+  const Icon = dir === 'back' ? BackChevron : Chevron;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={{ opacity: disabled ? 0.35 : 1 }}>
+      {({ pressed }) => (
+        <Sticker radius={10} lift={2} pressed={pressed} style={styles.arrow}>
+          <Icon color={disabled ? c.tertiaryLabel : c.tint} size={14} />
+        </Sticker>
+      )}
+    </Pressable>
   );
 }
 
@@ -43,9 +69,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginHorizontal: layout.inset,
     marginBottom: 16,
+    gap: 8,
   },
-  arrow: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  label: { flex: 1, textAlign: 'center' },
+  arrow: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  label: { flex: 1, alignItems: 'center' },
 });
 
 /** "2026-10" ⇄ Month, for passing a month in a URL. */

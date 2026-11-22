@@ -1,72 +1,91 @@
-// Apple Human Interface Guidelines system colours and type scale (iOS 18).
+// "Matka" theme: every colour is lifted from the pixel-art gullak mascot.
+// The pot's clay, the coin's gold, the sprout's green, the cream wave band and the dark pixel outline.
+// Colours that get a hex alpha suffix appended (`${c.tint}26`) must stay 6-digit hex.
 
 import { Platform, useColorScheme, type TextStyle } from 'react-native';
 
 const light = {
-  /** Clay, from the gullak mascot. Buttons, links, selected tabs. */
+  /** Clay, from the pot. Buttons, links, selected tabs. */
   tint: '#D2461E',
+  /** The pot's shadow side. Pressed states, the hero's lower half. */
+  clayDeep: '#A8341A',
   /** The mascot's coin. The accent; used sparingly. */
   gold: '#F5A90F',
-  /** The mascot's black pixel outline. */
+  /** The mascot's pixel outline: card edges and button borders. */
   outline: '#1C0F0C',
-  /** The pot's cream pattern. */
+  /** The hard offset shadow under outlined cards. */
+  shadow: '#1C0F0C',
+  /** The pot's cream wave band. */
   cream: '#F7DDB0',
-  background: '#FFFFFF',
-  groupedBackground: '#F2F2F7',
-  card: '#FFFFFF',
+  /** Text and marks that sit on clay. */
+  onTint: '#FFF4E2',
+  background: '#FFFAF2',
+  /** The page: the mascot's peach backdrop, lightened. */
+  groupedBackground: '#FCEFD9',
+  card: '#FFFAF2',
   cardElevated: '#FFFFFF',
-  fill: 'rgba(120,120,128,0.2)',
-  fillTertiary: 'rgba(118,118,128,0.12)',
-  label: '#000000',
-  secondaryLabel: 'rgba(60,60,67,0.6)',
-  tertiaryLabel: 'rgba(60,60,67,0.3)',
-  separator: 'rgba(60,60,67,0.29)',
-  chrome: 'rgba(249,249,249,0.82)',
-  blue: '#007AFF',
+  fill: 'rgba(122,62,30,0.16)',
+  fillTertiary: 'rgba(122,62,30,0.09)',
+  label: '#1C0F0C',
+  secondaryLabel: 'rgba(28,15,12,0.62)',
+  tertiaryLabel: 'rgba(28,15,12,0.34)',
+  /** Placeholder text in inputs: readable, but clearly not a value. */
+  placeholder: 'rgba(28,15,12,0.45)',
+  /** Outline of text boxes. */
+  fieldBorder: '#1C0F0C',
+  separator: 'rgba(28,15,12,0.14)',
+  chrome: 'rgba(252,239,217,0.88)',
+  blue: '#2F74C0',
   /** The mascot's sprout: money coming in. */
   green: '#2E9A2B',
-  red: '#FF3B30',
-  orange: '#FF9500',
-  yellow: '#FFCC00',
-  pink: '#FF2D55',
-  purple: '#AF52DE',
-  indigo: '#5856D6',
-  teal: '#30B0C7',
-  mint: '#00C7BE',
-  cyan: '#32ADE6',
-  brown: '#A2845E',
-  gray: '#8E8E93',
+  red: '#D7352A',
+  orange: '#EE7A12',
+  yellow: '#E9AE06',
+  pink: '#D9487C',
+  purple: '#8A50BE',
+  indigo: '#5057C2',
+  teal: '#1F97A6',
+  mint: '#1BAA90',
+  cyan: '#2A9AD0',
+  brown: '#966A44',
+  gray: '#8A7A70',
 };
 
 const dark: typeof light = {
   tint: '#FF7A4D',
+  clayDeep: '#C2481F',
   gold: '#FFC23D',
-  outline: '#000000',
+  /** Fired-clay edge: a black outline would vanish on the kiln-dark page. */
+  outline: '#5E3A2A',
+  shadow: '#000000',
   cream: '#F7DDB0',
-  background: '#000000',
-  groupedBackground: '#000000',
-  card: '#1C1C1E',
-  cardElevated: '#2C2C2E',
-  fill: 'rgba(120,120,128,0.36)',
-  fillTertiary: 'rgba(118,118,128,0.24)',
-  label: '#FFFFFF',
-  secondaryLabel: 'rgba(235,235,245,0.6)',
-  tertiaryLabel: 'rgba(235,235,245,0.3)',
-  separator: 'rgba(84,84,88,0.6)',
-  chrome: 'rgba(22,22,22,0.82)',
-  blue: '#0A84FF',
+  onTint: '#1C0F0C',
+  background: '#160D0A',
+  groupedBackground: '#1B100C',
+  card: '#28170F',
+  cardElevated: '#352015',
+  fill: 'rgba(247,221,176,0.18)',
+  fillTertiary: 'rgba(247,221,176,0.1)',
+  label: '#FBF1E6',
+  secondaryLabel: 'rgba(251,241,230,0.62)',
+  tertiaryLabel: 'rgba(251,241,230,0.32)',
+  placeholder: 'rgba(251,241,230,0.45)',
+  fieldBorder: 'rgba(247,221,176,0.42)',
+  separator: 'rgba(247,221,176,0.14)',
+  chrome: 'rgba(27,16,12,0.86)',
+  blue: '#5AA2F0',
   green: '#5FD14E',
-  red: '#FF453A',
-  orange: '#FF9F0A',
-  yellow: '#FFD60A',
-  pink: '#FF375F',
-  purple: '#BF5AF2',
-  indigo: '#5E5CE6',
-  teal: '#40C8E0',
-  mint: '#63E6E2',
-  cyan: '#64D2FF',
-  brown: '#AC8E68',
-  gray: '#8E8E93',
+  red: '#FF5A4A',
+  orange: '#FF9A3D',
+  yellow: '#FFD23D',
+  pink: '#FF6F9C',
+  purple: '#B67CF0',
+  indigo: '#7F86F2',
+  teal: '#3FC4D2',
+  mint: '#4FDCC0',
+  cyan: '#5CC6F5',
+  brown: '#C49A72',
+  gray: '#A8968A',
 };
 
 export type Palette = typeof light;
@@ -118,6 +137,21 @@ export function fontStyle(weight?: string | number, hindi = false): { fontFamily
 /** Large titles and the name: Geist at a lighter weight with tight tracking. */
 export const displayWeight: Weight = '500';
 
+// Jersey 10: the mascot's pixel art, as type. A scoreboard-style pixel face whose digits can't be
+// misread (amounts are the point of this app). Only for display text: large titles, big amounts,
+// the wordmark. One weight; Devanagari falls back per glyph on the web, and to Noto on native.
+const PIXEL_NATIVE = 'Jersey10_400Regular';
+const PIXEL_WEB = `'Jersey 10', ${WEB_STACK}`;
+
+/** Jersey 10 is condensed with a small x-height: pixel text is drawn this much larger than its nominal size. */
+export const PIXEL_SCALE = 1.25;
+
+/** fontFamily + fontWeight for the pixel display face. */
+export function pixelFontStyle(hindi = false): { fontFamily: string; fontWeight: TextStyle['fontWeight'] } {
+  if (Platform.OS !== 'web') return { fontFamily: hindi ? DEVANAGARI['600'] : PIXEL_NATIVE, fontWeight: 'normal' };
+  return { fontFamily: PIXEL_WEB, fontWeight: '400' };
+}
+
 /** Plain body font, for inputs. */
 export const fontFamily = bodyFont('400');
 
@@ -140,9 +174,13 @@ export type TypeStyle = keyof typeof type;
 export const layout = {
   /** Inset-grouped list side margin. */
   inset: 16,
-  radius: 10,
+  radius: 14,
   cardRadius: 16,
+  /** Outline width on cards, groups and big buttons: the mascot's pixel edge. */
+  outline: 2,
+  /** How far the hard shadow sits below-right of an outlined card. */
+  lift: 3,
   rowMinHeight: 44,
   maxWidth: 640,
-  tabBarHeight: 49,
+  tabBarHeight: 54,
 };

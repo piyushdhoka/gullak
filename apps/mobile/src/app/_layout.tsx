@@ -6,6 +6,7 @@ import { Platform, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Landing } from '@/components/landing';
+import { PushBanner } from '@/components/push-banner';
 import { SignIn } from '@/components/sign-in';
 import { DataProvider, useData } from '@/lib/data';
 import { isStandalone } from '@/lib/push';
@@ -49,7 +50,7 @@ const PUBLIC = new Set(['/how-it-works', '/features', '/faq', '/install', '/sign
  *   Signed out:  /  (website home, in a browser tab)   /how-it-works  /features  /faq  /install
  *                /sign-in  /sign-up  /forgot-password
  *   Signed in:   /  /activity  /settings  /setup  /transaction  /review  /inbox  /add  /budgets
- *                /subscriptions  /jars  /jar  /ask
+ *                /subscriptions  /jars  /jar  /ask  /notifications
  * Each side is hidden from the other with Stack.Protected: signed-out visits to the app go to /sign-in,
  * signed-in visits to the public pages go home.
  */
@@ -68,22 +69,27 @@ function Gate() {
   if (!ready && !PUBLIC.has(pathname)) return <View style={{ flex: 1, backgroundColor: c.groupedBackground }} />;
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.groupedBackground } }}>
-      <Stack.Protected guard={signedIn} redirectTo="/sign-in">
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="transaction" />
-        <Stack.Screen name="inbox" />
-        <Stack.Screen name="review" />
-        <Stack.Screen name="add" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="budgets" />
-        <Stack.Screen name="subscriptions" />
-        <Stack.Screen name="jars" />
-        <Stack.Screen name="jar" />
-        <Stack.Screen name="ask" />
-      </Stack.Protected>
-      <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="(site)" />
-      </Stack.Protected>
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.groupedBackground } }}>
+        <Stack.Protected guard={signedIn} redirectTo="/sign-in">
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="transaction" />
+          <Stack.Screen name="inbox" />
+          <Stack.Screen name="review" />
+          <Stack.Screen name="add" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="budgets" />
+          <Stack.Screen name="subscriptions" />
+          <Stack.Screen name="jars" />
+          <Stack.Screen name="jar" />
+          <Stack.Screen name="ask" />
+          <Stack.Screen name="notifications" />
+        </Stack.Protected>
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="(site)" />
+        </Stack.Protected>
+      </Stack>
+      {/* Notifications that arrive while the app is open drop in here instead of buzzing. */}
+      {signedIn ? <PushBanner /> : null}
+    </>
   );
 }

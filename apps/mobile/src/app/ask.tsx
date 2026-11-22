@@ -1,14 +1,27 @@
 // Gullu, Gullak's chatbot: chat with your own spending data. The server function runs the AI with our stats tools.
 
-import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  type ScrollViewInstance,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { friendly, isDemo, supabase } from '@/lib/api';
 import { BackChevron } from '@/ui/icons';
+import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { fontFamily, layout, type, useColors } from '@/ui/theme';
-import { router } from 'expo-router';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -35,6 +48,66 @@ const TOOL_LABEL: Record<string, string> = {
   biggest_payments: 'biggest payments',
 };
 
+const MASCOT = require('../../assets/images/logo-192.png');
+
+function Avatar({ size = 30 }: { size?: number }) {
+  const c = useColors();
+  return (
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size * 0.3, backgroundColor: c.cream, borderColor: c.outline }]}>
+      <Image source={MASCOT} style={{ width: size - 4, height: size - 4 }} contentFit="contain" />
+    </View>
+  );
+}
+
+/** Three coins bobbing while Gullu thinks. Still dots when reduce-motion is on. */
+function Thinking() {
+  const c = useColors();
+  const [t] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .catch(() => false)
+      .then((reduce) => {
+        if (reduce) return;
+        loop = Animated.loop(Animated.timing(t, { toValue: 1, duration: 900, useNativeDriver: Platform.OS !== 'web' }));
+        loop.start();
+      });
+    return () => loop?.stop();
+  }, [t]);
+  return (
+    <View style={styles.row} accessibilityLabel="Gullu is counting coins" accessibilityLiveRegion="polite">
+      <Avatar />
+      <Sticker radius={16} lift={2} style={styles.thinkingBubble}>
+        <View style={styles.dots}>
+          {[0, 1, 2].map((i) => (
+            <Animated.View
+              key={i}
+              style={[
+                styles.dot,
+                { backgroundColor: c.gold, borderColor: c.outline },
+                {
+                  transform: [
+                    {
+                      translateY: t.interpolate({
+                        inputRange: [0, (i + 0.5) / 4, (i + 1) / 4, 1],
+                        outputRange: [0, -5, 0, 0],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          ))}
+        </View>
+        <Text variant="footnote" color="secondaryLabel">
+          Counting coins…
+        </Text>
+      </Sticker>
+    </View>
+  );
+}
+
 export default function AskScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -50,6 +123,7 @@ export default function AskScreen() {
     setMessages(next);
     setDraft('');
     setBusy(true);
+    setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
     try {
       if (isDemo) throw new Error('Gullu answers from your real payments. Sign in to use it.');
       const { data, error } = await supabase.functions.invoke<{ answer: string; used: string[] }>('ask', {
@@ -69,101 +143,170 @@ export default function AskScreen() {
     }
   };
 
+  const canSend = !!draft.trim() && !busy;
+
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.groupedBackground }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.separator }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" style={styles.back}>
-          <BackChevron color={c.tint} size={18} />
-          <Text color="tint">Back</Text>
-        </Pressable>
-        <Text variant="headline">Gullu</Text>
-        <View style={{ width: 60 }} />
+      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.outline, backgroundColor: c.groupedBackground }]}>
+        <View style={styles.headerInner}>
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            style={({ pressed }) => [styles.back, pressed && { opacity: 0.5 }]}>
+            <BackChevron color={c.tint} size={20} />
+          </Pressable>
+          <Avatar size={38} />
+          <View style={{ flex: 1 }}>
+            <Text pixel variant="title3">
+              Gullu
+            </Text>
+            <Text variant="caption1" color="secondaryLabel" numberOfLines={1}>
+              {busy ? 'counting coins…' : 'answers from your own payments'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView ref={scroll} contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
         {messages.length === 0 ? (
           <View style={styles.empty}>
-            <Text variant="title3" weight="600">
-              Hi, I’m Gullu. Ask me about your money
-            </Text>
-            <Text variant="subheadline" color="secondaryLabel" style={{ marginTop: 4, marginBottom: 16 }}>
-              Gullu answers from your own payments and only sees totals, never your messages.
-            </Text>
-            {SUGGESTIONS.map((s) => (
-              <Pressable
-                key={s}
-                onPress={() => send(s)}
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.suggestion, { backgroundColor: c.card, opacity: pressed ? 0.6 : 1 }]}>
-                <Text variant="subheadline">{s}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-
-        {messages.map((m, i) => (
-          <View key={i} style={[styles.bubbleRow, m.role === 'user' && { justifyContent: 'flex-end' }]}>
-            <View
-              style={[
-                styles.bubble,
-                m.role === 'user'
-                  ? { backgroundColor: c.tint, borderBottomRightRadius: 6 }
-                  : { backgroundColor: m.error ? `${c.orange}22` : c.card, borderBottomLeftRadius: 6 },
-              ]}>
-              <Text variant="subheadline" style={m.role === 'user' ? { color: '#fff' } : undefined} selectable>
-                {m.content}
-              </Text>
-              {m.used?.length ? (
-                <Text variant="caption2" color="secondaryLabel" style={{ marginTop: 6 }}>
-                  From your {[...new Set(m.used.map((u) => TOOL_LABEL[u] ?? u))].join(', ')}
+            <View style={styles.row}>
+              <Avatar />
+              <Sticker radius={16} lift={2} style={styles.bubble}>
+                <Text variant="subheadline" weight="600">
+                  Hi, I’m Gullu. Ask me anything about your money.
                 </Text>
-              ) : null}
+                <Text variant="footnote" color="secondaryLabel" style={{ marginTop: 4 }}>
+                  I read your payment totals, never your messages.
+                </Text>
+              </Sticker>
+            </View>
+            <Text variant="footnote" weight="600" color="secondaryLabel" style={styles.tryHead}>
+              Try one
+            </Text>
+            <View style={styles.chips}>
+              {SUGGESTIONS.map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => send(s)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ask: ${s}`}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    { borderColor: c.outline, backgroundColor: pressed ? `${c.tint}26` : c.card },
+                  ]}>
+                  <Text variant="footnote" weight="500">
+                    {s}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           </View>
-        ))}
-        {busy ? (
-          <Text variant="footnote" color="secondaryLabel" style={styles.thinking}>
-            Gullu is looking at your payments…
-          </Text>
         ) : null}
+
+        {messages.map((m, i) =>
+          m.role === 'user' ? (
+            <View key={i} style={[styles.row, styles.rowUser]}>
+              <Sticker radius={16} lift={2} color={c.tint} style={[styles.bubble, styles.bubbleUser]}>
+                <Text variant="subheadline" style={{ color: c.onTint }} selectable>
+                  {m.content}
+                </Text>
+              </Sticker>
+            </View>
+          ) : (
+            <View key={i} style={styles.row}>
+              <Avatar />
+              <Sticker radius={16} lift={2} color={m.error ? c.cream : undefined} style={[styles.bubble, styles.bubbleGullu]}>
+                <Text variant="subheadline" style={m.error ? { color: '#5A2A12' } : undefined} selectable>
+                  {m.content}
+                </Text>
+                {m.used?.length ? (
+                  <View style={[styles.source, { borderTopColor: c.separator }]}>
+                    <Text variant="caption1" color="secondaryLabel">
+                      From your {[...new Set(m.used.map((u) => TOOL_LABEL[u] ?? u))].join(', ')}
+                    </Text>
+                  </View>
+                ) : null}
+              </Sticker>
+            </View>
+          ),
+        )}
+        {busy ? <Thinking /> : null}
       </ScrollView>
 
-      <View style={[styles.composer, { paddingBottom: insets.bottom + 8, borderTopColor: c.separator, backgroundColor: c.groupedBackground }]}>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Ask about your spending"
-          placeholderTextColor={c.tertiaryLabel}
-          onSubmitEditing={() => send(draft)}
-          returnKeyType="send"
-          maxLength={500}
-          style={[type.body, styles.input, { color: c.label, backgroundColor: c.card, fontFamily }]}
-        />
-        <Pressable
-          onPress={() => send(draft)}
-          disabled={!draft.trim() || busy}
-          accessibilityRole="button"
-          accessibilityLabel="Send"
-          style={({ pressed }) => [styles.send, { backgroundColor: c.tint, opacity: !draft.trim() || busy ? 0.4 : pressed ? 0.7 : 1 }]}>
-          <Text weight="700" style={{ color: '#fff', fontSize: 18 }}>
-            ↑
-          </Text>
-        </Pressable>
+      <View style={[styles.composer, { paddingBottom: insets.bottom + 10, borderTopColor: c.outline, backgroundColor: c.groupedBackground }]}>
+        <View style={styles.composerInner}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Ask Gullu about your spending"
+            placeholderTextColor={c.placeholder}
+            selectionColor={c.tint}
+            onSubmitEditing={() => send(draft)}
+            returnKeyType="send"
+            maxLength={500}
+            accessibilityLabel="Message to Gullu"
+            style={[type.body, styles.input, { color: c.label, backgroundColor: c.cardElevated, borderColor: c.fieldBorder, fontFamily, outlineStyle: 'none' } as never]}
+          />
+          <Pressable onPress={() => send(draft)} disabled={!canSend} accessibilityRole="button" accessibilityLabel="Send" accessibilityState={{ disabled: !canSend }}>
+            {({ pressed }) => (
+              <Sticker
+                radius={14}
+                lift={canSend ? 3 : 0}
+                pressed={pressed}
+                color={canSend ? c.tint : c.fill}
+                style={styles.send}>
+                <Text pixel style={{ color: canSend ? c.onTint : c.tertiaryLabel, fontSize: 22, lineHeight: 24 }}>
+                  ↑
+                </Text>
+              </Sticker>
+            )}
+          </Pressable>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: layout.inset, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 4, width: 60 },
-  list: { padding: layout.inset, gap: 10, flexGrow: 1 },
-  empty: { paddingTop: 12 },
-  suggestion: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, marginBottom: 8 },
-  bubbleRow: { flexDirection: 'row' },
-  bubble: { maxWidth: '85%', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
-  thinking: { paddingLeft: 6 },
-  composer: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: layout.inset, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
-  input: { flex: 1, minHeight: 42, borderRadius: 21, paddingHorizontal: 16 },
-  send: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  header: { borderBottomWidth: 2, paddingBottom: 10 },
+  headerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: layout.inset,
+    width: '100%',
+    maxWidth: layout.maxWidth,
+    alignSelf: 'center',
+  },
+  back: { width: 28, height: 36, justifyContent: 'center' },
+  avatar: { borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  list: { padding: layout.inset, gap: 14, flexGrow: 1, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
+  empty: { paddingTop: 8 },
+  tryHead: { marginTop: 22, marginBottom: 8, marginLeft: 40 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 40 },
+  chip: { borderWidth: 1.5, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 },
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  rowUser: { justifyContent: 'flex-end' },
+  bubble: { maxWidth: '82%', paddingVertical: 10, paddingHorizontal: 14, flexShrink: 1 },
+  bubbleUser: { borderBottomRightRadius: 4 },
+  bubbleGullu: { borderBottomLeftRadius: 4 },
+  source: { marginTop: 8, paddingTop: 6, borderTopWidth: 1 },
+  thinkingBubble: { paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dots: { flexDirection: 'row', gap: 4 },
+  dot: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5 },
+  composer: { borderTopWidth: 2, paddingTop: 10 },
+  composerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: layout.inset,
+    width: '100%',
+    maxWidth: layout.maxWidth,
+    alignSelf: 'center',
+  },
+  input: { flex: 1, minHeight: 46, borderRadius: 14, borderWidth: 2, paddingHorizontal: 14 },
+  send: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
 });

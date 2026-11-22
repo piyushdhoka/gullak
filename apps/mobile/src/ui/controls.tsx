@@ -9,6 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { Sticker } from './sticker';
 import { Text } from './text';
 import { fontFamily, layout, type, useColors, type ColorName } from './theme';
 
@@ -36,35 +37,44 @@ export function Button({
   const c = useColors();
   const bg =
     kind === 'filled' ? c[tint] : kind === 'tinted' ? `${c[tint]}26` : kind === 'gray' ? c.fillTertiary : 'transparent';
-  const fg = kind === 'filled' ? '#FFFFFF' : c[tint];
-  // Big filled buttons are drawn like the mascot: dark pixel outline + hard offset shadow.
-  const pixel = kind === 'filled' && size === 'large' && !disabled;
+  const fg = kind === 'filled' ? (tint === 'tint' ? c.onTint : '#FFFFFF') : c[tint];
+  const label = loading ? (
+    <ActivityIndicator color={fg} />
+  ) : (
+    <Text variant={size === 'large' ? 'headline' : 'subheadline'} weight="600" style={{ color: fg }}>
+      {title}
+    </Text>
+  );
+  // Big filled buttons are drawn like the mascot: pixel outline + hard shadow; pressing drops the face onto it.
+  if (kind === 'filled' && size === 'large') {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled || loading}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
+        style={[{ opacity: disabled ? 0.45 : 1 }, style]}>
+        {({ pressed }) => (
+          <Sticker color={bg} radius={12} lift={disabled ? 0 : 4} pressed={pressed} style={styles.large}>
+            {label}
+          </Sticker>
+        )}
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       style={({ pressed }) => [
         size === 'large' ? styles.large : styles.small,
-        { backgroundColor: bg, opacity: disabled ? 0.4 : pixel ? 1 : pressed ? 0.7 : 1 },
-        pixel && {
-          borderWidth: 2,
-          borderColor: c.outline,
-          shadowColor: c.outline,
-          shadowOpacity: 1,
-          shadowRadius: 0,
-          shadowOffset: pressed ? { width: 1, height: 1 } : { width: 4, height: 4 },
-          transform: pressed ? [{ translateX: 3 }, { translateY: 3 }] : [],
-        },
+        { backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.7 : 1 },
+        kind === 'filled' && { borderWidth: layout.outline, borderColor: c.outline },
         style,
       ]}>
-      {loading ? (
-        <ActivityIndicator color={fg} />
-      ) : (
-        <Text variant={size === 'large' ? 'headline' : 'subheadline'} weight="600" style={{ color: fg }}>
-          {title}
-        </Text>
-      )}
+      {label}
     </Pressable>
   );
 }
@@ -80,7 +90,7 @@ export function SegmentedControl<T extends string>({
 }) {
   const c = useColors();
   return (
-    <View style={[styles.segments, { backgroundColor: c.fillTertiary }]}>
+    <View style={[styles.segments, { backgroundColor: c.fillTertiary }]} accessibilityRole="tablist">
       {options.map((o) => {
         const selected = o.value === value;
         return (
@@ -91,7 +101,7 @@ export function SegmentedControl<T extends string>({
             accessibilityState={{ selected }}
             style={[
               styles.segment,
-              selected && [styles.segmentSelected, { backgroundColor: c.cardElevated }],
+              selected && [styles.segmentSelected, { backgroundColor: c.cardElevated, borderColor: c.outline }],
             ]}>
             <Text variant="footnote" weight={selected ? '600' : '500'}>
               {o.label}
@@ -103,42 +113,81 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-export function Field({ label, ...props }: TextInputProps & { label?: string }) {
+/**
+ * A labelled text box: the label sits above a solid, outlined field so it's always obvious where to type.
+ * Focus turns the outline and label clay. Password fields get a Show / Hide toggle inside the box.
+ * Works inside a Section (as a row) or on its own.
+ */
+export function Field({ label, hint, ...props }: TextInputProps & { label?: string; hint?: string }) {
   const c = useColors();
   const [focused, setFocused] = useState(false);
+  const [reveal, setReveal] = useState(false);
+  const secret = !!props.secureTextEntry;
   return (
     <View style={styles.field}>
       {label ? (
-        <Text variant="body" style={styles.fieldLabel}>
+        <Text variant="footnote" weight="600" color={focused ? 'tint' : 'secondaryLabel'} style={styles.fieldLabel}>
           {label}
         </Text>
       ) : null}
-      <TextInput
-        placeholderTextColor={c.tertiaryLabel}
-        {...props}
-        onFocus={(e) => {
-          setFocused(true);
-          props.onFocus?.(e);
-        }}
-        onBlur={(e) => {
-          setFocused(false);
-          props.onBlur?.(e);
-        }}
+      <View
         style={[
-          type.body,
-          styles.input,
-          { color: c.label, fontFamily },
-          focused && { outlineStyle: 'none' as never },
-          props.style,
-        ]}
-      />
+          styles.box,
+          {
+            backgroundColor: c.cardElevated,
+            borderColor: focused ? c.tint : c.fieldBorder,
+            // A soft clay ring outside the outline while typing.
+            boxShadow: focused ? `0 0 0 3px ${c.tint}33` : undefined,
+          } as ViewStyle,
+          props.editable === false && { opacity: 0.55 },
+        ]}>
+        <TextInput
+          placeholderTextColor={c.placeholder}
+          selectionColor={c.tint}
+          cursorColor={c.tint}
+          accessibilityLabel={props.accessibilityLabel ?? label}
+          {...props}
+          secureTextEntry={secret && !reveal}
+          onFocus={(e) => {
+            setFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            props.onBlur?.(e);
+          }}
+          style={[type.body, styles.input, { color: c.label, fontFamily, outlineStyle: 'none' } as never, props.style]}
+        />
+        {secret ? (
+          <Pressable
+            onPress={() => setReveal((r) => !r)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={reveal ? 'Hide password' : 'Show password'}
+            style={({ pressed }) => [styles.reveal, pressed && { opacity: 0.5 }]}>
+            <Text variant="footnote" weight="700" color="tint">
+              {reveal ? 'Hide' : 'Show'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {hint ? (
+        <Text variant="caption1" color="secondaryLabel" style={styles.fieldHint}>
+          {hint}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
-export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+/** A content card: the mascot's outline and hard shadow. `tone="clay"` paints it like the pot. */
+export function Card({ children, style, tone }: { children: ReactNode; style?: ViewStyle; tone?: 'clay' }) {
   const c = useColors();
-  return <View style={[styles.card, { backgroundColor: c.card }, style]}>{children}</View>;
+  return (
+    <Sticker style={[styles.card, style]} color={tone === 'clay' ? c.tint : undefined}>
+      {children}
+    </Sticker>
+  );
 }
 
 export function Badge({ text, tint = 'tint' }: { text: string; tint?: ColorName }) {
@@ -156,6 +205,7 @@ const styles = StyleSheet.create({
   large: {
     minHeight: 50,
     borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
@@ -167,23 +217,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
   },
-  segments: { flexDirection: 'row', borderRadius: 9, padding: 2, gap: 2 },
-  segment: { flex: 1, minHeight: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
-  segmentSelected: {
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+  segments: { flexDirection: 'row', borderRadius: 10, padding: 3, gap: 3 },
+  segment: {
+    flex: 1,
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  field: {
+  segmentSelected: {},
+  field: { paddingHorizontal: layout.inset, paddingVertical: 10 },
+  fieldLabel: { marginBottom: 6, marginLeft: 2 },
+  fieldHint: { marginTop: 5, marginLeft: 2 },
+  box: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: layout.rowMinHeight,
-    paddingHorizontal: layout.inset,
-    gap: 12,
+    minHeight: 50,
+    borderRadius: 12,
+    borderWidth: 2,
+    paddingHorizontal: 14,
   },
-  fieldLabel: { width: 90 },
-  input: { flex: 1, paddingVertical: 11, minWidth: 0 },
+  input: { flex: 1, minWidth: 0, minHeight: 46, paddingVertical: 12 },
+  reveal: { paddingLeft: 10, paddingVertical: 8 },
   card: { borderRadius: layout.cardRadius, padding: 16 },
   badge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start' },
 });

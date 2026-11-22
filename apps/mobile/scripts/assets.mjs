@@ -3,6 +3,7 @@
 // - public/mascot-{96,192,384}.webp + .png  (shown at 32–136 CSS px; ×3 covers iPhone screens)
 // - public/apple-touch-icon.png, icon-192.png, icon-512.png  (mascot on a cream tile)
 // - public/favicon-32.png, assets/images/favicon.png
+// - public/badge-96.png  (notification badge: white silhouette)
 // - assets/images/icon.png (app icon), splash-icon.png, logo-192.png (sign-in screen)
 // PNGs are palette-quantised (pixel art has few colours), so they stay tiny.
 // Usage: npm run icons
@@ -75,6 +76,13 @@ await save(png(square(48, 0.02)), 'assets/images/favicon.png');
 await save(png(square(1024, 0.1, CREAM)), 'assets/images/icon.png');
 await save(png(square(288, 0.04)), 'assets/images/splash-icon.png');
 await save(png(square(192, 0.1, CREAM)), 'assets/images/logo-192.png');
+// Notification badge (Android status bar, Chrome): one colour on transparent; the system tints it.
+await save(
+  sharp({ create: { width: 96, height: 96, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } } }).composite([
+    { input: await (await square(96, 0.06)).png().toBuffer(), blend: 'dest-in' },
+  ]),
+  'public/badge-96.png',
+);
 // QR code for laptop visitors: scan with the iPhone camera to open Gullak in Safari.
 const qr = await QRCode.toString('https://gullak.sparkstudio.co.in', {
   type: 'svg',
