@@ -750,82 +750,87 @@
   color: rgba(255, 255, 255, 0.85) !important;
 }
 
-/* ---------- install guide (bottom sheet) ---------- */
+/* ---------- sub-pages (/how-it-works, /features, /faq, /install) ---------- */
 
-.sheetBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(28, 15, 12, 0.45);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  animation: fade 160ms ease;
+.subpage {
+  padding-top: 24px;
 }
 
-.sheet {
-  width: 100%;
+.navLinks a[aria-current='page'] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+.primary,
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.textButton {
+  text-decoration: underline;
+}
+
+.next {
+  max-width: 1080px;
+  margin: 72px auto 0;
+  padding: 0 20px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.next a {
+  color: var(--clay-ui);
+  text-decoration: none;
+}
+
+.next a:hover {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 22px;
+  margin: 36px 0 0;
+  font-size: 14px;
+}
+
+.footerLinks a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+}
+
+.footerLinks a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.installCard {
   max-width: 480px;
+  margin: 36px 0 0;
   background: var(--card);
   color: var(--ink);
   border: 2px solid #1c0f0c;
-  border-bottom: 0;
-  border-radius: 26px 26px 0 0;
-  padding: 10px 24px calc(28px + env(safe-area-inset-bottom));
+  border-radius: 26px;
+  box-shadow: 5px 5px 0 #1c0f0c;
+  padding: 24px 24px 28px;
   text-align: center;
-  animation: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.sheetHandle {
-  width: 40px;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--hair);
-  margin: 0 auto 14px;
-}
-
-.sheetTitle {
-  margin: 8px 0 16px;
-  font-weight: 700;
-  font-size: 22px;
-  letter-spacing: -0.02em;
 }
 
 .sheetSteps {
-  margin: 0 auto 22px;
+  margin: 16px auto 22px;
   padding: 0 0 0 22px;
   max-width: 22em;
   text-align: left;
   display: grid;
   gap: 10px;
   font-size: 16px;
-}
-
-.sheetActions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-@keyframes fade {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes rise {
-  from {
-    transform: translateY(40px);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sheetBackdrop,
-  .sheet {
-    animation: none;
-  }
 }
 
 /* =====================================================================================

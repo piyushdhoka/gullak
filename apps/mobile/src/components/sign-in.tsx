@@ -1,6 +1,7 @@
 // Email + password accounts, with 6-digit email codes for confirming sign-up and resetting a password.
 // Codes work inside the installed apps; email links (also sent) open the browser instead.
 
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,8 @@ import {
   verifySignupCode,
 } from '@/lib/api';
 import { TAGLINE_EN } from '@/lib/app';
+import { isStandalone } from '@/lib/push';
+import { useClientValue } from '@/lib/use-client';
 import { Button, Field } from '@/ui/controls';
 import { BackChevron } from '@/ui/icons';
 import { Section } from '@/ui/list';
@@ -41,18 +44,33 @@ const COPY: Record<Mode, { title: string; en: string; button: string }> = {
 
 const MIN_PASSWORD = 8;
 
-export function SignIn({ onBack, recovering = false }: { onBack?: () => void; recovering?: boolean }) {
+/** The three forms that have their own URL. The code steps stay on the page that started them. */
+type Start = 'signin' | 'signup' | 'forgot';
+const ROUTE: Record<Start, '/sign-in' | '/sign-up' | '/forgot-password'> = {
+  signin: '/sign-in',
+  signup: '/sign-up',
+  forgot: '/forgot-password',
+};
+
+export function SignIn({ start = 'signin', recovering = false }: { start?: Start; recovering?: boolean }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const [chosen, setMode] = useState<Mode>('signin');
+  const [chosen, setMode] = useState<Mode>(start);
   const mode: Mode = recovering ? 'recovery' : chosen;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  // In a browser tab (not the installed app) the website is one tap back.
+  const standalone = useClientValue(isStandalone, false);
+  const showHome = Platform.OS === 'web' && !standalone && !recovering;
 
   const go = (next: Mode, note?: { text: string; ok: boolean }) => {
+    if (next in ROUTE && next !== start) {
+      router.replace(ROUTE[next as Start]);
+      return;
+    }
     setMode(next);
     setMessage(note ?? null);
     setCode('');
@@ -128,9 +146,13 @@ export function SignIn({ onBack, recovering = false }: { onBack?: () => void; re
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.groupedBackground }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.wrap, { paddingTop: insets.top + (onBack ? 12 : 60) }]} keyboardShouldPersistTaps="handled">
-        {onBack && !recovering ? (
-          <Pressable onPress={onBack} accessibilityRole="button" hitSlop={10} style={({ pressed }) => [styles.back, pressed && { opacity: 0.4 }]}>
+      <ScrollView contentContainerStyle={[styles.wrap, { paddingTop: insets.top + (showHome ? 12 : 60) }]} keyboardShouldPersistTaps="handled">
+        {showHome ? (
+          <Pressable
+            onPress={() => router.replace('/')}
+            accessibilityRole="link"
+            hitSlop={10}
+            style={({ pressed }) => [styles.back, pressed && { opacity: 0.4 }]}>
             <BackChevron color={c.tint} size={18} />
             <Text color="tint">Home</Text>
           </Pressable>

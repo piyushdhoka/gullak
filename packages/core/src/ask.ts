@@ -1,4 +1,4 @@
-// Ask Gullak: questions about your own money, answered by an AI model that can only call these tools.
+// Gullu (Gullak's chatbot): questions about your own money, answered by an AI model that can only call these tools.
 // The tools run our tested stats code over the user's own transactions and return totals and short lists:
 // no SQL, no raw SMS text ever reaches the model. Provider-agnostic: any OpenAI-compatible chat API.
 
@@ -224,7 +224,7 @@ export function runTool(name: string, rawArgs: unknown, data: AskData): unknown 
 
 export function systemPrompt(now: Date) {
   return [
-    'You are Gullak, a friendly assistant inside an Indian expense-tracking app. You answer questions about the user\'s own money.',
+    'You are Gullu, the friendly chatbot inside Gullak, an Indian expense-tracking app. You answer questions about the user\'s own money.',
     `Today is ${localDate(now.toISOString())} (India time). Money is in Indian rupees: write amounts like ₹1,250.`,
     'Always get numbers from the tools; never guess or invent them. If the tools have no data for something, say so plainly.',
     '"This month" means from the 1st of the current month to today. "Last month" is the previous calendar month.',

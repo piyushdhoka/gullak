@@ -1,5 +1,5 @@
 // Gullak Jars: savings goals ("Goa trip, ₹30,000 by March") with a plan and a nudge from real spending.
-// Pure functions, shared by the apps and Ask Gullak. An AI provider can later reword the nudge; the
+// Pure functions, shared by the apps and Gullu. An AI provider can later reword the nudge; the
 // numbers always come from here.
 
 import { addMonths, monthOf, type Month } from './stats.ts';

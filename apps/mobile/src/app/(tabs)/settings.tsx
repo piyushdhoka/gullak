@@ -88,7 +88,7 @@ export default function SettingsScreen() {
               <Text style={{ fontSize: 16 }}>💬</Text>
             </IconTile>
           }
-          title="Ask Gullak"
+          title="Ask Gullu"
           chevron
           onPress={() => router.push('/ask')}
         />

@@ -1,4 +1,4 @@
-// Ask Gullak: chat with your own spending data. The server function runs the AI with our stats tools.
+// Gullu, Gullak's chatbot: chat with your own spending data. The server function runs the AI with our stats tools.
 
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance } from 'react-native';
@@ -51,7 +51,7 @@ export default function AskScreen() {
     setDraft('');
     setBusy(true);
     try {
-      if (isDemo) throw new Error('Ask Gullak answers from your real payments. Sign in to use it.');
+      if (isDemo) throw new Error('Gullu answers from your real payments. Sign in to use it.');
       const { data, error } = await supabase.functions.invoke<{ answer: string; used: string[] }>('ask', {
         body: { messages: next.filter((m) => !m.error).map(({ role, content }) => ({ role, content })) },
       });
@@ -76,7 +76,7 @@ export default function AskScreen() {
           <BackChevron color={c.tint} size={18} />
           <Text color="tint">Back</Text>
         </Pressable>
-        <Text variant="headline">Ask Gullak</Text>
+        <Text variant="headline">Gullu</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -84,10 +84,10 @@ export default function AskScreen() {
         {messages.length === 0 ? (
           <View style={styles.empty}>
             <Text variant="title3" weight="600">
-              Ask about your money
+              Hi, I’m Gullu. Ask me about your money
             </Text>
             <Text variant="subheadline" color="secondaryLabel" style={{ marginTop: 4, marginBottom: 16 }}>
-              Answers come from your own payments. Gullak only shares totals with the AI, never your messages.
+              Gullu answers from your own payments and only sees totals, never your messages.
             </Text>
             {SUGGESTIONS.map((s) => (
               <Pressable
@@ -123,7 +123,7 @@ export default function AskScreen() {
         ))}
         {busy ? (
           <Text variant="footnote" color="secondaryLabel" style={styles.thinking}>
-            Gullak is looking at your payments…
+            Gullu is looking at your payments…
           </Text>
         ) : null}
       </ScrollView>

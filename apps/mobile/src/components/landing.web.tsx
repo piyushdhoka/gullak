@@ -1,38 +1,103 @@
-// Public landing page (web only). Signed-out visitors see this at "/".
-// Laptop/desktop: no sign-in at all; a QR code sends people to their iPhone.
-// Phones: "Add to iPhone" opens a 3-step guide; a small "Sign in" link leads to the app.
-// Plain DOM + a CSS module so the page can use real CSS (grid, sticky, keyframes, media queries).
+// The public website (web only): what signed-out visitors see. Every page has its own URL:
+//   /               home
+//   /how-it-works   the three steps
+//   /features       what Gullak does
+//   /faq            questions
+//   /install        how to get it on an iPhone (QR code on laptops)
+// Sign-in lives at /sign-in, /sign-up and /forgot-password (src/app/(site)).
+// Plain DOM + a CSS module so the pages can use real CSS (grid, sticky, keyframes, media queries).
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { router, type Href } from 'expo-router';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
 
 import { APP_NAME, WORDMARK } from '@/lib/app';
 
 import styles from './landing.module.css';
 
-export function Landing({ onOpen }: { onOpen: () => void }) {
-  const pageRef = useRef<HTMLDivElement>(null);
-  const [guide, setGuide] = useState(false);
+/* ---------------- routes ---------------- */
 
+const NAV: { href: Href & string; label: string }[] = [
+  { href: '/how-it-works', label: 'How it works' },
+  { href: '/features', label: 'Features' },
+  { href: '/faq', label: 'FAQ' },
+];
+
+/** A real link (crawlable, opens in a new tab) that navigates inside the app on a normal click. */
+function SiteLink({ href, className, children, label }: { href: Href & string; className?: string; children: ReactNode; label?: string }) {
+  const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    router.push(href);
+  };
+  const current = typeof window !== 'undefined' && window.location.pathname === href;
+  return (
+    <a href={href} className={className} onClick={onClick} aria-label={label} aria-current={current ? 'page' : undefined}>
+      {children}
+    </a>
+  );
+}
+
+/** Nav, sky and footer shared by every public page. */
+function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<HTMLDivElement | null> }) {
   return (
     <div className={styles.page} ref={pageRef}>
       <Sky />
 
       <nav className={styles.nav} aria-label={APP_NAME}>
-        <a className={styles.navBrand} href="#top" aria-label={`${APP_NAME} home`}>
+        <SiteLink className={styles.navBrand} href="/" label={`${APP_NAME} home`}>
           <Mascot size={30} eager />
           <Logotype />
-        </a>
+        </SiteLink>
         <div className={styles.navLinks}>
-          <a href="#how">How it works</a>
-          <a href="#features">Features</a>
-          <a href="#faq">FAQ</a>
+          {NAV.map((n) => (
+            <SiteLink key={n.href} href={n.href}>
+              {n.label}
+            </SiteLink>
+          ))}
         </div>
-        <a className={styles.navCta} href="#get">
+        <SiteLink className={styles.navCta} href="/install">
           Get Gullak
-        </a>
+        </SiteLink>
       </nav>
 
-      <header className={styles.hero} id="top">
+      {children}
+
+      <footer className={styles.footer}>
+        <Mascot size={96} />
+        <p className={styles.footerMark}>
+          <Logotype />
+        </p>
+        <GetIt />
+        <p className={styles.footerLinks}>
+          {NAV.map((n) => (
+            <SiteLink key={n.href} href={n.href}>
+              {n.label}
+            </SiteLink>
+          ))}
+          <SiteLink href="/install">Install</SiteLink>
+          <SiteLink href="/sign-in">Sign in</SiteLink>
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+/** "Next: …" at the bottom of each page, so the site reads in order. */
+function Next({ href, label }: { href: Href & string; label: string }) {
+  return (
+    <p className={styles.next}>
+      <SiteLink href={href}>{label} →</SiteLink>
+    </p>
+  );
+}
+
+/* ---------------- pages ---------------- */
+
+/** "/" for signed-out visitors. */
+export function Landing() {
+  return (
+    <Site>
+      <header className={styles.hero}>
         <div className={styles.spotlight} aria-hidden />
         <p className={styles.badge}>
           <span className={styles.badgeDot} aria-hidden />
@@ -45,7 +110,7 @@ export function Landing({ onOpen }: { onOpen: () => void }) {
           Pay with GPay, PhonePe or a card. Your bank texts you, and Gullak turns that SMS into a sorted, totalled
           expense a few seconds later. Nothing to type.
         </p>
-        <GetIt onOpen={onOpen} onGuide={() => setGuide(true)} id="get" />
+        <GetIt />
         <HeroPhone />
       </header>
 
@@ -71,13 +136,53 @@ export function Landing({ onOpen }: { onOpen: () => void }) {
           />
         </section>
 
-        <Story root={pageRef} />
-
-        <section className={styles.section} id="features" aria-labelledby="features-title">
-          <p className={styles.kicker}>Features</p>
-          <h2 id="features-title" className={styles.h2}>
-            From a bank SMS to a clear month
+        <section className={styles.note} aria-labelledby="note-title">
+          <p className={styles.kicker}>A note</p>
+          <h2 id="note-title" className={styles.noteTitle}>
+            Why Gullak exists
           </h2>
+          <div className={styles.noteBody}>
+            <p>
+              Every expense app we tried wanted the same thing: open me, type the amount, pick a category, do it again
+              tomorrow. We never kept it up past the first week.
+            </p>
+            <p>
+              But the bank already tells us about every rupee, the moment it leaves. So Gullak listens to that, sorts it,
+              and only asks when it genuinely can’t tell, like a chai stall’s QR code.
+            </p>
+            <p>Like the clay gullak you fed coins into as a kid: you just drop them in. It keeps count.</p>
+            <p className={styles.noteSign}>Team Gullak</p>
+          </div>
+        </section>
+        <Next href="/how-it-works" label="See how it works" />
+      </main>
+    </Site>
+  );
+}
+
+/** "/how-it-works" */
+export function HowItWorksPage() {
+  const pageRef = useRef<HTMLDivElement>(null);
+  return (
+    <Site pageRef={pageRef}>
+      <main className={styles.subpage}>
+        <Story root={pageRef} />
+        <Next href="/features" label="Features" />
+      </main>
+    </Site>
+  );
+}
+
+/** "/features" */
+export function FeaturesPage() {
+  return (
+    <Site>
+      <main className={styles.subpage}>
+        <section className={styles.section} aria-labelledby="features-title">
+          <p className={styles.kicker}>Features</p>
+          <h1 id="features-title" className={styles.h2}>
+            From a bank SMS to a clear month
+          </h1>
           <div className={styles.bento} onPointerMove={onMagicMove}>
             <article className={`${styles.tile} ${styles.tileWide}`}>
               <h3 className={styles.h3}>Reads the SMS, not your bank account</h3>
@@ -139,12 +244,22 @@ export function Landing({ onOpen }: { onOpen: () => void }) {
             </article>
           </div>
         </section>
+        <Next href="/faq" label="Questions" />
+      </main>
+    </Site>
+  );
+}
 
-        <section className={styles.section} id="faq" aria-labelledby="faq-title">
+/** "/faq" */
+export function FaqPage() {
+  return (
+    <Site>
+      <main className={styles.subpage}>
+        <section className={styles.section} aria-labelledby="faq-title">
           <p className={styles.kicker}>FAQ</p>
-          <h2 id="faq-title" className={styles.h2}>
+          <h1 id="faq-title" className={styles.h2}>
             Your questions, answered
-          </h2>
+          </h1>
           <div className={styles.faq}>
             <Faq q="Does Gullak read my personal messages?">
               Your iPhone forwards incoming messages, and Gullak keeps only the ones that look like bank or payment SMS.
@@ -159,7 +274,7 @@ export function Landing({ onOpen }: { onOpen: () => void }) {
               Not yet. The iPhone version is first. Android can read bank SMS directly, so it’s next.
             </Faq>
             <Faq q="Why isn’t it in the App Store?">
-              Gullak installs straight from Safari: open this page on your iPhone, tap Share, then Add to Home Screen. It
+              Gullak installs straight from Safari: open this site on your iPhone, tap Share, then Add to Home Screen. It
               updates itself and never expires.
             </Faq>
             <Faq q="What about UPI Lite and cash?">
@@ -168,37 +283,40 @@ export function Landing({ onOpen }: { onOpen: () => void }) {
             </Faq>
           </div>
         </section>
+        <Next href="/install" label="Get Gullak" />
+      </main>
+    </Site>
+  );
+}
 
-        <section className={styles.note} aria-labelledby="note-title">
-          <p className={styles.kicker}>A note</p>
-          <h2 id="note-title" className={styles.noteTitle}>
-            Why Gullak exists
-          </h2>
-          <div className={styles.noteBody}>
-            <p>
-              Every expense app we tried wanted the same thing: open me, type the amount, pick a category, do it again
-              tomorrow. We never kept it up past the first week.
-            </p>
-            <p>
-              But the bank already tells us about every rupee, the moment it leaves. So Gullak listens to that, sorts it,
-              and only asks when it genuinely can’t tell, like a chai stall’s QR code.
-            </p>
-            <p>Like the clay gullak you fed coins into as a kid: you just drop them in. It keeps count.</p>
-            <p className={styles.noteSign}>Team Gullak</p>
+/** "/install": the three steps on a phone, a QR code on a laptop. */
+export function InstallPage() {
+  return (
+    <Site>
+      <main className={styles.subpage}>
+        <section className={styles.section} aria-labelledby="install-title">
+          <p className={styles.kicker}>Install</p>
+          <h1 id="install-title" className={styles.h2}>
+            Add Gullak to your iPhone
+          </h1>
+          <div className={styles.installCard}>
+            <Mascot size={64} eager />
+            <ol className={styles.sheetSteps}>
+              <li>
+                Open this site in <strong>Safari</strong> on your iPhone.
+              </li>
+              <li>
+                Tap <strong>Share</strong> <span aria-hidden>⬆︎</span>, choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
+              </li>
+              <li>
+                Open <strong>Gullak</strong> from your Home Screen and create your account.
+              </li>
+            </ol>
+            <GetIt hideInstall />
           </div>
         </section>
       </main>
-
-      <footer className={styles.footer}>
-        <Mascot size={96} />
-        <p className={styles.footerMark}>
-          <Logotype />
-        </p>
-        <GetIt onOpen={onOpen} onGuide={() => setGuide(true)} />
-      </footer>
-
-      {guide ? <InstallGuide onClose={() => setGuide(false)} onOpen={onOpen} /> : null}
-    </div>
+    </Site>
   );
 }
 
@@ -242,19 +360,21 @@ function Mascot({ size, className, eager }: { size: number; className?: string; 
 }
 
 /**
- * How to get Gullak. Touch screens get "Add to iPhone" + a small "Sign in"; laptops get a QR code
- * and no sign-in. Chosen with CSS (pointer/hover media queries), so the first paint is already right.
+ * How to get Gullak. Touch screens get "Add to iPhone" (→ /install) + "Sign in" (→ /sign-in); laptops get
+ * a QR code and no sign-in. Chosen with CSS (pointer/hover media queries), so the first paint is already right.
  */
-function GetIt({ onOpen, onGuide, id }: { onOpen: () => void; onGuide: () => void; id?: string }) {
+function GetIt({ hideInstall }: { hideInstall?: boolean }) {
   return (
-    <div className={styles.getIt} id={id}>
+    <div className={styles.getIt}>
       <div className={styles.onTouch}>
-        <button type="button" className={styles.primary} onClick={onGuide}>
-          Add to iPhone
-        </button>
-        <button type="button" className={styles.textButton} onClick={onOpen}>
+        {hideInstall ? null : (
+          <SiteLink href="/install" className={styles.primary}>
+            Add to iPhone
+          </SiteLink>
+        )}
+        <SiteLink href="/sign-in" className={styles.textButton}>
           Already set up? Sign in
-        </button>
+        </SiteLink>
       </div>
       <div className={styles.onDesktop}>
         <div className={styles.qrCard}>
@@ -270,48 +390,6 @@ function GetIt({ onOpen, onGuide, id }: { onOpen: () => void; onGuide: () => voi
   );
 }
 
-function InstallGuide({ onClose, onOpen }: { onClose: () => void; onOpen: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className={styles.sheetBackdrop} onClick={onClose}>
-      <div
-        className={styles.sheet}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="guide-title"
-        onClick={(e) => e.stopPropagation()}>
-        <div className={styles.sheetHandle} aria-hidden />
-        <Mascot size={64} eager />
-        <h2 id="guide-title" className={styles.sheetTitle}>
-          Add Gullak to your iPhone
-        </h2>
-        <ol className={styles.sheetSteps}>
-          <li>
-            Tap <strong>Share</strong> <span aria-hidden>⬆︎</span> in Safari’s toolbar.
-          </li>
-          <li>
-            Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
-          </li>
-          <li>
-            Open <strong>Gullak</strong> from your Home Screen and create your account.
-          </li>
-        </ol>
-        <div className={styles.sheetActions}>
-          <button type="button" className={styles.primary} onClick={onClose}>
-            Got it
-          </button>
-          <button type="button" className={styles.textButton} onClick={onOpen}>
-            Already added? Sign in
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Stat({ value, prefix, suffix, label }: { value: number; prefix?: string; suffix?: string; label: string }) {
   const [ref, seen] = useSeen<HTMLDivElement>();
@@ -583,12 +661,12 @@ function Story({ root }: { root: RefObject<HTMLDivElement | null> }) {
   }, [root]);
 
   return (
-    <section className={styles.story} id="how" aria-labelledby="how-title">
+    <section className={styles.story} aria-labelledby="how-title">
       <div className={styles.storyHead}>
         <p className={styles.kicker}>How it works</p>
-        <h2 id="how-title" className={styles.h2}>
+        <h1 id="how-title" className={styles.h2}>
           Set it up once. Then forget it.
-        </h2>
+        </h1>
       </div>
       <div className={styles.storyGrid}>
         <ol className={styles.storySteps}>

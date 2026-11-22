@@ -2,7 +2,7 @@
 // Body: { "messages": [{ "role": "user" | "assistant", "content": "..." }, ...] }   (last 10 used)
 // → { "answer": "...", "used": ["spending", ...] }
 //
-// Ask Gullak. Loads the caller's own data with their token (row-level security applies), then lets the AI
+// Gullu, the chatbot. Loads the caller's own data with their token (row-level security applies), then lets the AI
 // model answer by calling the tools in packages/core/src/ask.ts. No raw SMS is loaded or sent.
 //
 // Provider: Gemini 3.5 Flash-Lite through Google's OpenAI-compatible endpoint, using the GEMINI_API_KEY secret.
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   if (!db) return json(401, { error: 'Sign in first' });
 
   const ai = provider();
-  if (!ai) return json(503, { error: 'Ask Gullak isn’t switched on yet.' });
+  if (!ai) return json(503, { error: 'Gullu isn’t switched on yet.' });
 
   const messages = readMessages(await req.json().catch(() => null));
   if (!messages.length || messages[messages.length - 1].role !== 'user') return json(400, { error: 'Ask a question' });
@@ -78,6 +78,6 @@ Deno.serve(async (req) => {
     return json(200, await ask(messages, data, openAICompatible(ai)));
   } catch (err) {
     console.error('ask failed', err);
-    return json(502, { error: 'Gullak’s AI is not answering right now. Try again in a minute.' });
+    return json(502, { error: 'Gullu isn’t answering right now. Try again in a minute.' });
   }
 });
