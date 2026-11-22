@@ -317,7 +317,7 @@ export function FeaturesPage() {
                   <Mascot size={28} />
                 </span>
                 <p>
-                  <b>₹4,320</b> on Food so far in November. Swiggy is ₹2,610 of it. 🍔
+                  <b>₹4,320</b> on Food so far this month. Swiggy is ₹2,610 of it. 🍔
                 </p>
               </div>
               <p className={styles.chatMe}>And last month?</p>
@@ -801,7 +801,7 @@ function HeroPhone() {
         <div className={styles.screen}>
           <span className={styles.island} />
           <div className={styles.lockTop}>
-            <span className={styles.lockDate}>Sunday 22 November</span>
+            <span className={styles.lockDate}>Today</span>
             <span className={styles.clock}>9:41</span>
           </div>
           <ol className={styles.feed}>
@@ -820,7 +820,7 @@ function HeroPhone() {
           </ol>
           <div className={styles.potCard}>
             <span className={styles.potTop}>
-              <span>Spent in November</span>
+              <span>Spent this month</span>
               <Coin size={24} />
             </span>
             <span className={styles.potAmount}>

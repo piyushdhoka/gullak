@@ -1,7 +1,7 @@
 /* Gullak website, in the app's "Matka" design system (docs/DESIGN.md).
    The page is the mascot's peach-cream; cards are stickers (2px outline + hard offset shadow) that
    press down; the clay surfaces carry the cream wave band; numbers and headlines are in the pixel face.
-   No glows, no gradients, no blur. Dark mode is "Gullak at midnight": a blue-violet night where the clay and gold glow. */
+   No glows, no gradients, no blur. Dark mode is "sprout night": a deep green dark, from the mascot's sprout, where the clay and gold glow. */
 
 .page {
   --page: #fcefd9;
@@ -49,9 +49,9 @@
 
 @media (prefers-color-scheme: dark) {
   .page {
-    --page: #0f1020;
-    --card: #181a2e;
-    --card-hi: #222540;
+    --page: #0c1611;
+    --card: #14221a;
+    --card-hi: #1c2f24;
     --clay: #ff6b3d;
     --clay-deep: #e04e22;
     --on-clay: #170a04;
@@ -70,9 +70,9 @@
     --fill: rgba(255, 255, 255, 0.12);
     --fill-2: rgba(255, 255, 255, 0.06);
     --red: #ff5d5d;
-    --wall: #0a0b17;
-    --bubble: #262a48;
-    --paper: #1c1f36;
+    --wall: #08100b;
+    --bubble: #20372a;
+    --paper: #172a1f;
   }
 }
 
