@@ -15,6 +15,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, typ
 
 import { APP_NAME, WORDMARK } from '@/lib/app';
 
+import { hasAuthLinkError } from './auth-link';
 import { LandingPot } from './landing-pot';
 import styles from './landing.module.css';
 
@@ -123,6 +124,10 @@ function PageHead({ id, title, lede, side }: { id: string; title: string; lede: 
 
 /** "/" for signed-out visitors. */
 export function Landing() {
+  // A failed email link (expired / already used) lands on the home page: send it to sign-in, which explains.
+  useEffect(() => {
+    if (hasAuthLinkError()) router.replace('/sign-in');
+  }, []);
   return (
     <Site>
       <header className={styles.hero}>

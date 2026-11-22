@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { authLinkError, clearAuthLinkError } from '@/components/auth-link';
 import { Wordmark } from '@/components/wordmark';
 import { resendSignupCode, sendPasswordReset, setNewPassword, signIn, signUp } from '@/lib/api';
 import { TAGLINE_EN } from '@/lib/app';
@@ -60,7 +61,11 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  // Opened from an expired / used email link: say so up front.
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(() => {
+    const linkError = authLinkError();
+    return linkError ? { ok: false, text: linkError } : null;
+  });
   // In a browser tab (not the installed app) the website is one tap back.
   const standalone = useClientValue(isStandalone, false);
   const showHome = Platform.OS === 'web' && !standalone && !recovering;
@@ -83,6 +88,7 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
       go('signin');
       return;
     }
+    clearAuthLinkError();
     setBusy(true);
     setMessage(null);
     try {
