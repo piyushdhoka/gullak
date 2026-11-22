@@ -41,3 +41,14 @@ example
 # generated native folders
 /ios
 /android
+
+# secrets
+.env
+.secrets/
+
+server/data/
+server/.env
+
+
+# local-only env (no secrets today, but keep it off GitHub)
+.env.development

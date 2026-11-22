@@ -1,0 +1,22 @@
+{
+  "name": "gullak-server",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.16"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/index.ts",
+    "dev": "node --experimental-strip-types --disable-warning=ExperimentalWarning --env-file-if-exists=.env --watch src/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.11",
+    "hono": "^4.13.19",
+    "web-push": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/web-push": "^3.6.4",
+    "typescript": "^7.0.2"
+  }
+}

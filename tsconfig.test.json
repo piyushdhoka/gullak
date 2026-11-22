@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2023",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "lib": ["DOM", "ES2023"],
+    "types": ["node"],
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["tests/**/*.ts", "src/lib/stats.ts", "src/lib/types.ts"]
+}

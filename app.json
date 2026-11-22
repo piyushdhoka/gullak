@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "iOs",
-    "slug": "iOs",
+    "name": "Gullak",
+    "slug": "gullak",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ios",
+    "scheme": "gullak",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +20,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "server",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -28,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F2F2F7",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }

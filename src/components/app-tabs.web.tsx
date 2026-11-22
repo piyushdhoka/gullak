@@ -1,115 +1,81 @@
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
-import { SymbolView } from 'expo-symbols';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
+// Web build: an iOS-style translucent tab bar.
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BlurView } from 'expo-blur';
+import { TabList, TabSlot, TabTrigger, Tabs, type TabListProps, type TabTriggerSlotProps } from 'expo-router/ui';
+import { forwardRef, type ComponentRef, type ComponentType } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ExternalLink } from './external-link';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
+import { ActivityIcon, SettingsIcon, SetupIcon, SummaryIcon } from '@/ui/icons';
+import { Text } from '@/ui/text';
+import { layout, useColors } from '@/ui/theme';
+
+type Icon = ComponentType<{ color: string; size?: number; filled?: boolean }>;
+
+const TABS: { name: string; href: '/' | '/activity' | '/setup' | '/settings'; label: string; Icon: Icon }[] = [
+  { name: 'index', href: '/', label: 'Summary', Icon: SummaryIcon },
+  { name: 'activity', href: '/activity', label: 'Activity', Icon: ActivityIcon },
+  { name: 'setup', href: '/setup', label: 'Setup', Icon: SetupIcon },
+  { name: 'settings', href: '/settings', label: 'Settings', Icon: SettingsIcon },
+];
 
 export default function AppTabs() {
   return (
     <Tabs>
-      <TabSlot style={{ height: '100%' }} />
+      <TabSlot style={{ flex: 1 }} />
       <TabList asChild>
-        <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
-        </CustomTabList>
+        {/* Tabs reads the triggers from this element's direct children. */}
+        <TabBar>
+          {TABS.map((t) => (
+            <TabTrigger key={t.name} name={t.name} href={t.href} asChild>
+              <TabButton label={t.label} Icon={t.Icon} />
+            </TabTrigger>
+          ))}
+        </TabBar>
       </TabList>
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+function TabBar({ children, style: _slotStyle, ...rest }: TabListProps) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
-    </Pressable>
-  );
-}
-
-export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-
-  return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
-        </ThemedText>
-
-        {props.children}
-
-        <ExternalLink href="https://docs.expo.dev" asChild>
-          <Pressable style={styles.externalPressable}>
-            <ThemedText type="link">Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
-              size={12}
-            />
-          </Pressable>
-        </ExternalLink>
-      </ThemedView>
+    <View {...rest} style={[styles.bar, { height: layout.tabBarHeight + insets.bottom }]}>
+      <BlurView intensity={60} tint="systemChromeMaterial" style={StyleSheet.absoluteFill}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: c.chrome }]} />
+      </BlurView>
+      <View style={[styles.hairline, { backgroundColor: c.separator }]} />
+      <View style={[styles.items, { paddingBottom: insets.bottom }]}>{children}</View>
     </View>
   );
 }
 
+const TabButton = forwardRef<ComponentRef<typeof Pressable>, TabTriggerSlotProps & { label: string; Icon: Icon }>(function TabButton(
+  { isFocused, label, Icon, ...props },
+  ref,
+) {
+  const c = useColors();
+  const color = isFocused ? c.tint : c.gray;
+  return (
+    <Pressable ref={ref} {...props} style={styles.button} accessibilityRole="tab" accessibilityState={{ selected: isFocused }}>
+      <Icon color={color} filled={isFocused} size={25} />
+      <Text variant="caption2" weight="500" style={{ color, marginTop: 2 }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+});
+
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden' },
+  hairline: { position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth },
+  items: {
+    flex: 1,
+    flexDirection: 'row',
     width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
+    maxWidth: layout.maxWidth,
+    alignSelf: 'center',
   },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
-  },
-  brandText: {
-    marginRight: 'auto',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  externalPressable: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
-  },
+  button: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 5 },
 });

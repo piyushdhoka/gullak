@@ -1,56 +1,38 @@
-# Welcome to your Expo app 👋
+# Gullak
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Automatic expense tracking for India. Every bank SMS on your iPhone (GPay, PhonePe, cards, NEFT…) is
+forwarded by an iOS Shortcut to your own server, parsed, categorised, and pushed back to your phone:
+`−₹250.00 · Swiggy` / `Food · HDFC Bank •1234`.
 
-## Get started
+- **App:** Expo (React Native) exported as an installable web app (PWA) with an iOS-style UI; the
+  same code can later become a native App Store app.
+- **Server:** Node 24 + Hono + built-in SQLite on EC2, behind Caddy (automatic HTTPS). Serves the
+  app, the API, and `/ingest` for the Shortcut. Daily backups.
+- **Categorising:** your choices → known merchants → signals → optional small model (readable
+  names only, confidence-gated) → one-tap **Review** for QR codes and IDs.
 
-1. Install dependencies
+## Layout
 
-   ```bash
-   npm install
-   ```
+| Path | What |
+| --- | --- |
+| `src/app/` | Screens: Summary, Activity, Setup, Settings, Review, payment detail, Not recognised |
+| `src/ui/` | iOS-style components (grouped lists, large-title nav bar, buttons, icons, HIG colours) |
+| `src/lib/` | API client, data layer (+ demo data), dashboard maths, push, formatting |
+| `server/src/core/` | SMS parser, categoriser, capture pipeline (pure TypeScript, unit-tested) |
+| `server/src/` | HTTP API, SQLite, auth, push, static app serving, backups |
+| `deploy/` | `deploy.ps1` (Windows → EC2) and `remote-setup.sh` |
+| `tests/` | Vitest unit + API tests |
+| `docs/` | Design spec and setup guide |
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Commands
 
 ```bash
-npm run reset-project
+npm run server       # API on :8787
+npm run web          # app on :8081
+npm test
+npm run typecheck    # app, tests and server
+npm run lint
+.\deploy\deploy.ps1  # build and deploy to EC2
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Setup and deployment: [docs/SETUP.md](docs/SETUP.md).

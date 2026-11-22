@@ -16,5 +16,13 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "server",
+    "tests",
+    "vitest.config.ts",
+    "classifier",
+    "supabase/functions"
   ]
 }

@@ -1,31 +1,25 @@
-import { NativeTabs } from 'expo-router/native-tabs';
-import { useColorScheme } from 'react-native';
+// Native (iOS/Android) build: real system tab bar. The web build uses app-tabs.web.tsx.
 
-import { Colors } from '@/constants/theme';
+import { NativeTabs } from 'expo-router/native-tabs';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+    <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Label>Summary</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="chart.pie.fill" />
       </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
+      <NativeTabs.Trigger name="activity">
+        <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="list.bullet" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="setup">
+        <NativeTabs.Trigger.Label>Setup</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="bolt.fill" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="gearshape.fill" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );
