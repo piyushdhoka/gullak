@@ -11,9 +11,10 @@
 // Everything renders statically (expo export pre-renders it): no window/document access during render.
 
 import { router, type Href } from 'expo-router';
-import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type ComponentType, type MouseEvent, type ReactNode, type RefObject } from 'react';
 
 import { APP_NAME, WORDMARK } from '@/lib/app';
+import { BRAND_LOGOS } from '@/ui/brand-logos';
 
 import { hasAuthLinkError } from './auth-link';
 import { LandingPot } from './landing-pot';
@@ -177,9 +178,7 @@ export function Landing() {
             <figure className={styles.tfOut}>
               <figcaption className={styles.tfCap}>What lands in Gullak</figcaption>
               <div className={styles.txnCard}>
-                <span className={styles.txnEmoji} aria-hidden>
-                  🍔
-                </span>
+                <BrandTile name="Swiggy" emoji="🍔" className={styles.txnEmoji} />
                 <span className={styles.txnBody}>
                   <span className={styles.txnName}>Swiggy</span>
                   <span className={styles.txnMeta}>Food · HDFC Bank •1234</span>
@@ -192,6 +191,11 @@ export function Landing() {
 
         <section className={styles.note} aria-labelledby="note-title">
           <div className={styles.receiptWrap}>
+            <CrumpleReceipt />
+          </div>
+          <CrumpleHint />
+          {/* The bill's words, for screen readers and search engines; the sheet above is a picture of it. */}
+          <div className={styles.srOnly}>
             <article className={styles.receipt}>
               <p className={styles.receiptShop} aria-hidden>
                 Gullak · since the first coin
@@ -276,7 +280,10 @@ export function FeaturesPage() {
                 </div>
                 <div data-k="payee">
                   <dt>Paid to</dt>
-                  <dd>Swiggy</dd>
+                  <dd className={styles.fPayee}>
+                    <BrandTile name="Swiggy" emoji="🍔" className={styles.fLogo} />
+                    Swiggy
+                  </dd>
                 </div>
                 <div data-k="account">
                   <dt>From</dt>
@@ -357,10 +364,23 @@ export function FeaturesPage() {
 
           <article className={`${styles.tile} ${styles.span6} ${styles.tilePrivacy}`}>
             <h2 className={styles.h3}>Your messages stay yours</h2>
-            <ul className={styles.ticks}>
-              <li>Personal chats are dropped before they’re stored.</li>
-              <li>No bank passwords, no account linking.</li>
-              <li>Runs on Gullak’s own server, not an ad network.</li>
+            <p className={styles.tileText}>Gullak only needs your bank’s SMS. Everything else stays out.</p>
+            <ul className={styles.promises}>
+              <li>
+                <PrivacyIcon kind="chat" />
+                <span className={styles.promiseTitle}>Chats never kept</span>
+                <span className={styles.promiseText}>Personal chats are dropped before they’re stored.</span>
+              </li>
+              <li>
+                <PrivacyIcon kind="key" />
+                <span className={styles.promiseTitle}>No bank login</span>
+                <span className={styles.promiseText}>No bank passwords, no account linking.</span>
+              </li>
+              <li>
+                <PrivacyIcon kind="server" />
+                <span className={styles.promiseTitle}>Our own server</span>
+                <span className={styles.promiseText}>Runs on Gullak’s own server, not an ad network.</span>
+              </li>
             </ul>
           </article>
         </section>
@@ -680,6 +700,108 @@ function Faq({ q, children }: { q: string; children: ReactNode }) {
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
 /** True once the element has been on screen (IntersectionObserver works through the page's scroller). */
+/* ---------------- brand logos & privacy icons ---------------- */
+
+/** A merchant's real logo on its brand colour (Simple Icons, CC0); the emoji tile when there isn't one. */
+function BrandTile({ name, emoji, className }: { name: string; emoji: string; className?: string }) {
+  const logo = BRAND_LOGOS[name];
+  if (!logo) {
+    return (
+      <span className={className} aria-hidden>
+        {emoji}
+      </span>
+    );
+  }
+  const hex = logo.hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const light = 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6;
+  return (
+    <span className={`${className ?? ''} ${styles.brandTile}`} style={{ background: logo.hex }} aria-hidden>
+      <svg viewBox="0 0 24 24" width="58%" height="58%">
+        <path d={logo.path} fill={light ? '#1c0f0c' : '#ffffff'} />
+      </svg>
+    </span>
+  );
+}
+
+/** Line icons for the privacy promises: a chat being dropped, a key crossed out, a server. */
+function PrivacyIcon({ kind }: { kind: 'chat' | 'key' | 'server' }) {
+  return (
+    <span className={styles.promiseIcon} aria-hidden>
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {kind === 'chat' ? (
+          <>
+            <path d="M5 4h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+            <path d="M9 8l6 4M15 8l-6 4" />
+          </>
+        ) : kind === 'key' ? (
+          <>
+            <circle cx="8" cy="15" r="4" />
+            <path d="M11 12l8-8M16 7l2 2M14 9l2 2" />
+            <path d="M3 3l18 18" />
+          </>
+        ) : (
+          <>
+            <rect x="4" y="3.5" width="16" height="7" rx="2" />
+            <rect x="4" y="13.5" width="16" height="7" rx="2" />
+            <path d="M8 7h.01M8 17h.01M12 7h4M12 17h4" />
+          </>
+        )}
+      </svg>
+    </span>
+  );
+}
+
+/* ---------------- the crumple-able receipt ---------------- */
+
+// React Bits' PaperCrumple (vendored, see vendor/paper-crumple/LICENSE.md). It pulls in three.js, so it is
+// loaded only when the receipt scrolls into view; until then (and for crawlers) a plain image shows.
+const PaperCrumple = lazy(
+  () => import('./vendor/paper-crumple/PaperCrumple.jsx') as unknown as Promise<{ default: ComponentType<Record<string, unknown>> }>,
+);
+const RECEIPT_SRC = '/site/why-receipt.webp';
+const RECEIPT_RATIO = 1393 / 1040;
+
+function CrumpleReceipt() {
+  const [ref, seen] = useSeen<HTMLDivElement>(0.15);
+  const reduce = useReducedMotion();
+  const [width, setWidth] = useState(360);
+  useEffect(() => {
+    const fit = () => setWidth(Math.round(Math.min(420, window.innerWidth - 48)));
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
+  const height = Math.round(width * RECEIPT_RATIO);
+  const still = <img src={RECEIPT_SRC} alt="" width={width} height={height} className={styles.receiptImg} />;
+  return (
+    <div ref={ref} className={styles.crumple} aria-hidden>
+      {seen && !reduce ? (
+        <Suspense fallback={still}>
+          <PaperCrumple
+            src={RECEIPT_SRC}
+            alt=""
+            width={width}
+            height={height}
+            sceneHeight={height + 140}
+            paperColor="#fffaf2"
+            crumpleAmount={0.9}
+            foldCount={7}
+            shadowOpacity={0.14}
+          />
+        </Suspense>
+      ) : (
+        still
+      )}
+    </div>
+  );
+}
+
+function CrumpleHint() {
+  const reduce = useReducedMotion();
+  return reduce ? null : <p className={styles.crumpleHint}>Hold and drag the bill to crumple it</p>;
+}
+
 function useSeen<T extends Element>(threshold = 0.4) {
   const ref = useRef<T>(null);
   const [seen, setSeen] = useState(false);
@@ -966,7 +1088,7 @@ function StoryScreen({ step }: { step: number }) {
           18002586161
         </p>
         <p className={styles.bubble}>
-          Rs.374.00 debited from A/c XX1234 to VPA <b>zepto@ybl</b>. UPI Ref 532117765409.
+          Rs.374.00 debited from A/c XX1234 to VPA <b>bigbasket@ybl</b>. UPI Ref 532117765409.
         </p>
         <p className={styles.scrHint}>Your bank sends these anyway. Nothing new to install there.</p>
       </div>
@@ -1003,11 +1125,11 @@ function StoryScreen({ step }: { step: number }) {
       <div className={styles.rows}>
         {[
           { e: '🍔', name: 'Swiggy', cat: 'Food', amt: '₹250' },
-          { e: '🛒', name: 'Zepto', cat: 'Groceries', amt: '₹374' },
+          { e: '🛒', name: 'BigBasket', cat: 'Groceries', amt: '₹374' },
           { e: '🤔', name: 'paytmqr2810…', cat: 'Tap to pick a category', amt: '₹40', warn: true },
         ].map((r) => (
           <div key={r.name} className={styles.row}>
-            <span className={styles.rowEmoji}>{r.e}</span>
+            {r.warn ? <span className={styles.rowEmoji}>{r.e}</span> : <BrandTile name={r.name} emoji={r.e} className={styles.rowEmoji} />}
             <span className={styles.rowBody}>
               <span className={styles.rowName}>{r.name}</span>
               <span className={r.warn ? styles.rowWarn : styles.rowCat}>{r.cat}</span>
