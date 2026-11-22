@@ -52,7 +52,7 @@ body {
 @media (prefers-color-scheme: dark) {
   html,
   body {
-    background-color: #1b100c;
+    background-color: #0f1020;
   }
 }
 
@@ -67,7 +67,7 @@ body {
   height: 0;
 }
 
-/* Keyboard focus: a coin-gold ring, visible on clay, cream and kiln-dark alike. */
+/* Keyboard focus: a coin-gold ring, visible on clay, cream and midnight alike. */
 :focus-visible {
   outline: 3px solid #f5a90f;
   outline-offset: 2px;
@@ -97,7 +97,7 @@ input:-webkit-autofill:focus {
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
     -webkit-text-fill-color: #fbf1e6;
-    -webkit-box-shadow: 0 0 0 1000px #352015 inset;
-    caret-color: #ff7a4d;
+    -webkit-box-shadow: 0 0 0 1000px #222540 inset;
+    caret-color: #ff6b3d;
   }
 }

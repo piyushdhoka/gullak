@@ -14,10 +14,11 @@ import { Button, Card, Field } from '@/ui/controls';
 import { Section } from '@/ui/list';
 import { Screen } from '@/ui/screen';
 import { Coin, MatkaBand, Sticker } from '@/ui/sticker';
+import { JAR_ICONS, JarIcon } from '@/ui/glyphs';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
 
-const EMOJIS = ['🏖️', '✈️', '📱', '💻', '🎁', '🏍️', '🎓', '💍', '🏠', '🪔', '🛟', '🐷'];
+const EMOJIS = JAR_ICONS.map((j) => j.emoji);
 
 /** Deadline presets: months from now, or none. */
 const WHEN = [
@@ -129,7 +130,7 @@ function JarTile({ jar, plan }: { jar: Jar; plan: JarPlan }) {
       {({ pressed }) => (
         <Sticker pressed={pressed} style={styles.tileFace}>
           <View style={styles.tileTop}>
-            <Text style={styles.tileEmoji}>{jar.emoji ?? '🐷'}</Text>
+            <JarIcon emoji={jar.emoji} size={24} color={c.label} />
             <Text pixel variant="footnote" color="secondaryLabel">
               {pct}%
             </Text>
@@ -232,10 +233,10 @@ function NewJar({ onDone }: { onDone: () => void }) {
                 key={e}
                 onPress={() => setEmoji(e)}
                 accessibilityRole="radio"
-                accessibilityLabel={`Icon ${e}`}
+                accessibilityLabel={`Icon: ${JAR_ICONS.find((j) => j.emoji === e)?.label ?? e}`}
                 accessibilityState={{ selected: on }}
                 style={[styles.emojiPick, { borderColor: on ? c.outline : 'transparent', backgroundColor: on ? `${c.gold}40` : 'transparent' }]}>
-                <Text style={{ fontSize: 24 }}>{e}</Text>
+                <JarIcon emoji={e} size={24} color={on ? c.label : c.secondaryLabel} />
               </Pressable>
             );
           })}

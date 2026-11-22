@@ -7,6 +7,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { categoryMeta } from '@/lib/categories';
 import { Button, Card } from '@/ui/controls';
+import { Glyph, type GlyphName } from '@/ui/glyphs';
 import { Text } from '@/ui/text';
 import { fontFamily, layout, type, useColors } from '@/ui/theme';
 
@@ -89,7 +90,7 @@ export function CategoryChips({
         <Chip
           key={category}
           label={category}
-          emoji={categoryMeta(category).emoji}
+          glyph={categoryMeta(category).glyph}
           count={count}
           selected={value === category}
           onPress={() => onChange(value === category ? null : category)}
@@ -101,13 +102,13 @@ export function CategoryChips({
 
 function Chip({
   label,
-  emoji,
+  glyph,
   count,
   selected,
   onPress,
 }: {
   label: string;
-  emoji?: string;
+  glyph?: GlyphName;
   count?: number;
   selected: boolean;
   onPress: () => void;
@@ -128,7 +129,7 @@ function Chip({
           opacity: pressed ? 0.7 : 1,
         },
       ]}>
-      {emoji ? <Text style={styles.chipEmoji}>{emoji}</Text> : null}
+      {glyph ? <Glyph name={glyph} size={16} color={fg} /> : null}
       <Text variant="subheadline" weight="600" style={{ color: fg }}>
         {label}
       </Text>

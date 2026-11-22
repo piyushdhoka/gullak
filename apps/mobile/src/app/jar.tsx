@@ -14,6 +14,7 @@ import { Button, Card, Field, SegmentedControl } from '@/ui/controls';
 import { IconTile, Row, Section } from '@/ui/list';
 import { Screen } from '@/ui/screen';
 import { Coin, PixelBar, Sticker } from '@/ui/sticker';
+import { JarIcon } from '@/ui/glyphs';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
 
@@ -100,7 +101,7 @@ export default function JarScreen() {
           label={`${jar.name} jar, ${pct}% full`}
         />
         <View style={styles.heroName}>
-          <Text style={styles.heroEmoji}>{jar.emoji ?? '🐷'}</Text>
+          <JarIcon emoji={jar.emoji} size={24} color={c.label} />
           <Text variant="headline" numberOfLines={1} style={{ flexShrink: 1 }}>
             {jar.name}
           </Text>

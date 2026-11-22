@@ -1,3 +1,4 @@
+import type { GlyphName } from '@/ui/glyphs';
 import type { ColorName } from '@/ui/theme';
 
 export const CATEGORIES = [
@@ -17,21 +18,22 @@ export const CATEGORIES = [
   'Other',
 ] as const;
 
-export const CATEGORY_META: Record<string, { emoji: string; color: ColorName }> = {
-  Food: { emoji: '🍔', color: 'orange' },
-  Groceries: { emoji: '🛒', color: 'green' },
-  Shopping: { emoji: '🛍️', color: 'pink' },
-  Transport: { emoji: '🚕', color: 'yellow' },
-  Travel: { emoji: '✈️', color: 'cyan' },
-  Bills: { emoji: '💡', color: 'indigo' },
-  Entertainment: { emoji: '🎬', color: 'purple' },
-  Health: { emoji: '💊', color: 'red' },
-  Investments: { emoji: '📈', color: 'mint' },
-  Transfers: { emoji: '👤', color: 'blue' },
-  Cash: { emoji: '💵', color: 'brown' },
-  Income: { emoji: '💰', color: 'green' },
-  Refund: { emoji: '↩️', color: 'teal' },
-  Other: { emoji: '📦', color: 'gray' },
+// `emoji` stays for plain-text places (notifications); the UI draws `glyph`.
+export const CATEGORY_META: Record<string, { emoji: string; glyph: GlyphName; color: ColorName }> = {
+  Food: { emoji: '🍔', glyph: 'food', color: 'orange' },
+  Groceries: { emoji: '🛒', glyph: 'groceries', color: 'green' },
+  Shopping: { emoji: '🛍️', glyph: 'shopping', color: 'pink' },
+  Transport: { emoji: '🚕', glyph: 'transport', color: 'yellow' },
+  Travel: { emoji: '✈️', glyph: 'travel', color: 'cyan' },
+  Bills: { emoji: '💡', glyph: 'bills', color: 'indigo' },
+  Entertainment: { emoji: '🎬', glyph: 'entertainment', color: 'purple' },
+  Health: { emoji: '💊', glyph: 'health', color: 'red' },
+  Investments: { emoji: '📈', glyph: 'investments', color: 'mint' },
+  Transfers: { emoji: '👤', glyph: 'transfers', color: 'blue' },
+  Cash: { emoji: '💵', glyph: 'cash', color: 'brown' },
+  Income: { emoji: '💰', glyph: 'income', color: 'green' },
+  Refund: { emoji: '↩️', glyph: 'refund', color: 'teal' },
+  Other: { emoji: '📦', glyph: 'other', color: 'gray' },
 };
 
 export function categoryMeta(category: string) {

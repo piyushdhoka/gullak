@@ -24,6 +24,7 @@ import {
 } from '@/lib/stats';
 import { Button, Card } from '@/ui/controls';
 import { Row, Section } from '@/ui/list';
+import { Glyph, type GlyphName } from '@/ui/glyphs';
 import { Screen } from '@/ui/screen';
 import { Coin, MatkaBand, PixelBar, Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
@@ -98,20 +99,20 @@ function Greeting() {
 /** Three big tappable stickers: the things you do most, one tap away. */
 function QuickActions({ review, payments }: { review: number; payments: number }) {
   const c = useColors();
-  const items: { key: string; label: string; hint: string; icon: string; onPress: () => void; badge?: number; tone?: 'clay' | 'gold' }[] = [
-    { key: 'ask', label: 'Ask Gullu', hint: 'Ask about money', icon: '💬', onPress: () => router.push('/ask'), tone: 'clay' },
+  const items: { key: string; label: string; hint: string; icon: GlyphName; onPress: () => void; badge?: number; tone?: 'clay' | 'gold' }[] = [
+    { key: 'budgets', label: 'Budgets', hint: 'What’s left', icon: 'target', onPress: () => router.push('/budgets'), tone: 'clay' },
     review
       ? {
           key: 'review',
           label: `Sort ${review}`,
           hint: `${payments} payment${payments === 1 ? '' : 's'} waiting`,
-          icon: '🤔',
+          icon: 'question',
           onPress: () => router.push('/review'),
           badge: review,
           tone: 'gold',
         }
-      : { key: 'jars', label: 'Jars', hint: 'Save for something', icon: '🫙', onPress: () => router.push('/jars') },
-    { key: 'add', label: 'Add cash', hint: 'Chai, auto, tips', icon: '🪙', onPress: () => router.push('/add') },
+      : { key: 'jars', label: 'Jars', hint: 'Save for something', icon: 'jar', onPress: () => router.push('/jars') },
+    { key: 'add', label: 'Add cash', hint: 'Chai, auto, tips', icon: 'coin', onPress: () => router.push('/add') },
   ];
   return (
     <View style={styles.quick}>
@@ -127,7 +128,9 @@ function QuickActions({ review, payments }: { review: number; payments: number }
             style={styles.quickCell}>
             {({ pressed }) => (
               <Sticker color={bg} radius={14} pressed={pressed} style={styles.quickCard}>
-                <Text style={styles.quickIcon}>{it.icon}</Text>
+                <View style={styles.quickIcon}>
+                  <Glyph name={it.icon} size={26} color={fg} />
+                </View>
                 <Text variant="subheadline" weight="700" numberOfLines={1} style={{ color: fg }}>
                   {it.label}
                 </Text>
@@ -518,7 +521,7 @@ const styles = StyleSheet.create({
   quick: { flexDirection: 'row', gap: 8, marginHorizontal: layout.inset, marginBottom: 16 },
   quickCell: { flex: 1, minWidth: 0 },
   quickCard: { paddingVertical: 12, paddingHorizontal: 10, gap: 2, minHeight: 92 },
-  quickIcon: { fontSize: 22, lineHeight: 28, marginBottom: 4 },
+  quickIcon: { height: 28, justifyContent: 'center', marginBottom: 4 },
   demo: {
     flexDirection: 'row',
     alignItems: 'center',

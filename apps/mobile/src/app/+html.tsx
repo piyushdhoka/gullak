@@ -26,7 +26,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="theme-color" content="#FCEFD9" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#1B100C" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#0F1020" media="(prefers-color-scheme: dark)" />
         <meta name="format-detection" content="telephone=no" />
 
         <ScrollViewStyleReset />

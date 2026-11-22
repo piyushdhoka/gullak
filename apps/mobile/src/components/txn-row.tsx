@@ -4,12 +4,13 @@ import { Pressable } from 'react-native';
 import { categoryMeta } from '@/lib/categories';
 import { displayName, signedMoney, time } from '@/lib/format';
 import type { Transaction } from '@/lib/types';
+import { Glyph } from '@/ui/glyphs';
 import { IconTile, Row } from '@/ui/list';
 import { Text } from '@/ui/text';
 import { useColors } from '@/ui/theme';
 
 /**
- * The category's emoji on its colour, in an outlined square.
+ * The category's icon on its colour, in an outlined square.
  * `unknown` draws a gold "?" instead: a payee Gullak can't sort yet.
  */
 export function CategoryTile({ category, size = 32, unknown }: { category: string; size?: number; unknown?: boolean }) {
@@ -26,9 +27,14 @@ export function CategoryTile({ category, size = 32, unknown }: { category: strin
   const meta = categoryMeta(category);
   return (
     <IconTile color={c[meta.color]} size={size}>
-      <Text style={{ fontSize: size * 0.52, lineHeight: size * 0.7 }}>{meta.emoji}</Text>
+      <Glyph name={meta.glyph} size={Math.round(size * 0.62)} color={tileInk(meta.color)} />
     </IconTile>
   );
+}
+
+/** Icon colour on a tile: dark ink on the light tile colours, white on the rest. */
+export function tileInk(color: string): string {
+  return color === 'yellow' || color === 'gold' || color === 'mint' || color === 'cyan' ? '#1C0F0C' : '#FFFFFF';
 }
 
 export function TxnRow({ t, showTime = true }: { t: Transaction; showTime?: boolean }) {

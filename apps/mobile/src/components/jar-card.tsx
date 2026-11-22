@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { money } from '@/lib/format';
 import { PotMeter } from '@/components/pot-meter';
 import { PixelBar, Sticker } from '@/ui/sticker';
+import { JarIcon } from '@/ui/glyphs';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
 
@@ -37,7 +38,7 @@ export function JarCard({
         <View>
           <PotMeter progress={progress} size={46} label={null} />
           <View style={[styles.emoji, { backgroundColor: c.cardElevated, borderColor: c.outline }]}>
-            <Text style={styles.emojiText}>{emoji}</Text>
+            <JarIcon emoji={emoji} size={15} color={c.label} />
           </View>
         </View>
         <View style={styles.middle}>

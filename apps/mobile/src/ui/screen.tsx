@@ -63,7 +63,8 @@ export function Screen({
         style={styles.fill}
         contentContainerStyle={{
           paddingTop: insets.top + BAR,
-          paddingBottom: (tabBar ? layout.tabBarHeight : 0) + insets.bottom + 24,
+          // Tab screens also leave room for the floating Gullu button.
+          paddingBottom: (tabBar ? layout.tabBarHeight + 76 : 0) + insets.bottom + 24,
         }}
         onScroll={onScroll}
         scrollEventThrottle={16}

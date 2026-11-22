@@ -7,8 +7,8 @@ import { Switch } from 'react-native';
 import { isDemo } from '@/lib/api';
 import { disablePush, enablePush, hasSubscription, pushState, type PushState } from '@/lib/push';
 import { useClientValue } from '@/lib/use-client';
+import { Glyph } from '@/ui/glyphs';
 import { IconTile, Row } from '@/ui/list';
-import { Text } from '@/ui/text';
 import { useColors } from '@/ui/theme';
 
 const WHY: Partial<Record<PushState, { value: string; subtitle: string }>> = {
@@ -35,7 +35,7 @@ export function PushToggle() {
 
   const icon = (
     <IconTile color={c.gold}>
-      <Text style={{ fontSize: 16 }}>🔔</Text>
+      <Glyph name="bell" size={18} color="#1C0F0C" />
     </IconTile>
   );
 

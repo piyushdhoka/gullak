@@ -6,16 +6,18 @@ import { StyleSheet, View } from 'react-native';
 import { confirm } from '@/lib/confirm';
 
 import { PushToggle } from '@/components/settings-push';
+import { tileInk } from '@/components/txn-row';
 import { Wordmark } from '@/components/wordmark';
 import { APP_NAME, TAGLINE_EN } from '@/lib/app';
 import { useData } from '@/lib/data';
 import { shortMonth } from '@/lib/format';
 import { monthOf } from '@/lib/stats';
+import { Glyph, type GlyphName } from '@/ui/glyphs';
 import { IconTile, Row, Section } from '@/ui/list';
 import { Screen } from '@/ui/screen';
 import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
-import { layout, useColors } from '@/ui/theme';
+import { layout, useColors, type ColorName } from '@/ui/theme';
 
 export default function SettingsScreen() {
   const { mode, session, inbox, transactions, budgets, jars, signOut, deleteAccount } = useData();
@@ -41,9 +43,9 @@ export default function SettingsScreen() {
     }
   };
 
-  const tile = (color: string, emoji: string) => (
-    <IconTile color={color}>
-      <Text style={styles.emoji}>{emoji}</Text>
+  const tile = (color: ColorName, glyph: GlyphName) => (
+    <IconTile color={c[color]}>
+      <Glyph name={glyph} size={18} color={tileInk(color)} />
     </IconTile>
   );
 
@@ -57,39 +59,38 @@ export default function SettingsScreen() {
 
       <Section header="Money">
         <Row
-          left={tile(c.green, '🎯')}
+          left={tile('green', 'target')}
           title="Budgets"
           value={budgets.length ? String(budgets.length) : undefined}
           chevron
           onPress={() => router.push('/budgets')}
         />
         <Row
-          left={tile(c.purple, '🔁')}
+          left={tile('purple', 'repeat')}
           title="Subscriptions & repeats"
           chevron
           onPress={() => router.push('/subscriptions')}
         />
         <Row
-          left={tile(c.gold, '🐷')}
+          left={tile('gold', 'jar')}
           title="Gullak Jars"
           value={jars.length ? String(jars.length) : undefined}
           chevron
           onPress={() => router.push('/jars')}
         />
-        <Row left={tile(c.tint, '💬')} title="Ask Gullu" chevron onPress={() => router.push('/ask')} />
-        <Row left={tile(c.brown, '💵')} title="Add a cash payment" chevron onPress={() => router.push('/add')} />
+        <Row left={tile('brown', 'cash')} title="Add a cash payment" chevron onPress={() => router.push('/add')} />
       </Section>
 
       <Section header="Messages" footer="Bank SMS the app couldn’t read yet. They’re kept so nothing is lost.">
         <Row
-          left={tile(c.orange, '✉️')}
+          left={tile('orange', 'mail')}
           title="Not recognised"
           value={String(inbox.length)}
           chevron
           onPress={() => router.push('/inbox')}
         />
         <Row
-          left={tile(c.indigo, '🙈')}
+          left={tile('indigo', 'eyeOff')}
           title="Hidden payments"
           subtitle="Shown in Activity, left out of totals"
           value={String(hidden)}
