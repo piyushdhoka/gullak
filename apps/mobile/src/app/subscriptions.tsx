@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { CategoryTile } from '@/components/txn-row';
+import { MerchantTile } from '@/components/txn-row';
 import { useData } from '@/lib/data';
 import { money, shortDate } from '@/lib/format';
 import { recurringMonthlyTotal, recurringPayments, type Recurring } from '@/lib/stats';
@@ -141,7 +141,7 @@ function Ticket({ r, first }: { r: Recurring; first: boolean }) {
           ))}
         </View>
         <View style={styles.body}>
-          <CategoryTile category={r.category} size={30} />
+          <MerchantTile name={r.name} category={r.category} size={30} />
           <View style={styles.bodyText}>
             <Text variant="headline" numberOfLines={1}>
               {r.name}

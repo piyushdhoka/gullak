@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { monthParam, MonthSwitcher } from '@/components/month-switcher';
 import { JarCard } from '@/components/jar-card';
 import { UnreadSms } from '@/components/unread-sms';
-import { CategoryTile, TxnRow } from '@/components/txn-row';
+import { CategoryTile, MerchantTile, TxnRow } from '@/components/txn-row';
 import { jarPlan } from '@gullak/core/jars.ts';
 import { categoryMeta } from '@/lib/categories';
 import { useData } from '@/lib/data';
@@ -284,7 +284,7 @@ function Subscriptions() {
       {items.slice(0, 3).map((r) => (
         <Row
           key={r.key}
-          left={<CategoryTile category={r.category} />}
+          left={<MerchantTile name={r.name} category={r.category} />}
           title={r.name}
           subtitle={`Next around ${r.next.getDate()} ${shortMonth(monthOf(r.next))}`}
           value={money(r.amount, { whole: true })}

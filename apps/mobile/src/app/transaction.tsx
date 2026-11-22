@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { CategoryTile } from '@/components/txn-row';
+import { CategoryTile, MerchantTile } from '@/components/txn-row';
 import { CATEGORIES } from '@/lib/categories';
 import { useData } from '@/lib/data';
 import { accountLabel, displayName, fullDate, signedMoney } from '@/lib/format';
@@ -110,7 +110,7 @@ export default function TransactionScreen() {
       <View style={styles.receiptWrap}>
         <Sticker radius={16} style={styles.receipt} lift={0}>
           <View style={styles.receiptTop}>
-            <CategoryTile category={needsCategory ? 'Other' : t.category} size={56} />
+            <MerchantTile name={t.merchant} category={t.category} unknown={needsCategory} size={56} />
             <Text pixel variant="title2" align="center" numberOfLines={2} style={{ marginTop: 10 }}>
               {displayName(t)}
             </Text>

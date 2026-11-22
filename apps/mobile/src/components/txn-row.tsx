@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { categoryMeta } from '@/lib/categories';
 import { displayName, signedMoney, time } from '@/lib/format';
 import type { Transaction } from '@/lib/types';
+import { BRAND_LOGOS, type BrandLogo } from '@/ui/brand-logos';
 import { Glyph } from '@/ui/glyphs';
 import { IconTile, Row } from '@/ui/list';
 import { Text } from '@/ui/text';
@@ -28,6 +30,46 @@ export function CategoryTile({ category, size = 32, unknown }: { category: strin
   return (
     <IconTile color={c[meta.color]} size={size}>
       <Glyph name={meta.glyph} size={Math.round(size * 0.62)} color={tileInk(meta.color)} />
+    </IconTile>
+  );
+}
+
+// Brand logos by lower-cased name, so a hand-typed "swiggy" finds Swiggy too.
+const LOGO_BY_NAME = new Map<string, BrandLogo>(Object.entries(BRAND_LOGOS).map(([name, logo]) => [name.toLowerCase(), logo]));
+
+/** Relative luminance of a #RRGGBB colour, 0 (black) … 1 (white). */
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * The merchant's real logo (white, or dark on light brand colours) on its brand colour, when Gullak has one;
+ * otherwise the category tile. For tiles that stand for one merchant: payment rows, the receipt, repeats.
+ */
+export function MerchantTile({
+  name,
+  category,
+  size = 32,
+  unknown,
+}: {
+  name?: string | null;
+  category: string;
+  size?: number;
+  unknown?: boolean;
+}) {
+  const logo = !unknown && name ? LOGO_BY_NAME.get(name.trim().toLowerCase()) : undefined;
+  if (!logo) return <CategoryTile category={category} size={size} unknown={unknown} />;
+  const ink = luminance(logo.hex) > 0.45 ? '#1C0F0C' : '#FFFFFF';
+  const glyph = Math.round(size * 0.58);
+  return (
+    <IconTile color={logo.hex} size={size}>
+      <Svg width={glyph} height={glyph} viewBox="0 0 24 24" accessibilityLabel={logo.title}>
+        <Path d={logo.path} fill={ink} />
+      </Svg>
     </IconTile>
   );
 }
@@ -63,7 +105,7 @@ export function TxnRow({ t, showTime = true }: { t: Transaction; showTime?: bool
       accessibilityHint="Opens the payment"
       style={({ pressed }) => pressed && { backgroundColor: c.fill }}>
       <Row
-        left={<CategoryTile category={t.category} unknown={needsCategory} />}
+        left={<MerchantTile name={t.merchant} category={t.category} unknown={needsCategory} />}
         title={
           <Text weight="500" numberOfLines={1}>
             {name}
