@@ -61,14 +61,57 @@ function Perforation() {
   );
 }
 
+/**
+ * The saved "remember this payee" rule (payee_rules): whether it exists, and turning it on/off.
+ * On = future payments from this payee get this category automatically. Off = Gullak decides each one.
+ * The database's set_category always saves a rule, so a change made with the switch off removes it again.
+ */
+function usePayeeRule(payeeKey: string | null | undefined, userId: string | undefined) {
+  // Sample data has no saved rules: start "on" there; live mode loads the real state.
+  const [remembered, setRemembered] = useState<boolean | null>(isDemo ? true : null);
+  useEffect(() => {
+    if (!payeeKey || isDemo) return;
+    let alive = true;
+    supabase
+      .from('payee_rules')
+      .select('payee_key')
+      .eq('payee_key', payeeKey)
+      .maybeSingle()
+      .then(({ data }) => alive && setRemembered(!!data));
+    return () => {
+      alive = false;
+    };
+  }, [payeeKey]);
+
+  const forget = async () => {
+    setRemembered(false);
+    if (isDemo || !payeeKey) return;
+    const { error } = await supabase.from('payee_rules').delete().eq('payee_key', payeeKey);
+    if (error) setRemembered(true);
+  };
+
+  const save = async (category: string) => {
+    setRemembered(true);
+    if (isDemo || !payeeKey || !userId) return;
+    const { error } = await supabase
+      .from('payee_rules')
+      .upsert({ user_id: userId, payee_key: payeeKey, category, updated_at: new Date().toISOString() }, { onConflict: 'user_id,payee_key' });
+    if (error) setRemembered(false);
+  };
+
+  return { remembered, forget, save, setRemembered };
+}
+
 export default function TransactionScreen() {
   const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { transactions, setCategory, updateTransaction } = useData();
+  const { transactions, setCategory, updateTransaction, session } = useData();
   const t = transactions.find((x) => x.id === id);
 
   const [picking, setPicking] = useState(false);
-  const [applyAll, setApplyAll] = useState(true);
+  const rule = usePayeeRule(t?.payee_key, session?.userId);
+  // Until the saved state has loaded, treat it as on (the default when you first pick a category).
+  const remember = rule.remembered ?? true;
   const [sms, setSms] = useState<string | null>(null);
 
   useEffect(() => {
@@ -166,7 +209,7 @@ export default function TransactionScreen() {
                   <Pressable
                     key={cat}
                     onPress={() => {
-                      setCategory(t.id, cat, applyAll);
+                      void setCategory(t.id, cat, remember).then(() => (remember ? rule.setRemembered(true) : rule.forget()));
                       setPicking(false);
                     }}
                     accessibilityRole="button"
@@ -194,9 +237,20 @@ export default function TransactionScreen() {
         <Section>
           <SwitchRow
             title="Remember for this payee"
-            subtitle={samePayee > 1 ? `Also updates ${samePayee - 1} other payment${samePayee > 2 ? 's' : ''}` : 'Future payments use it too'}
-            value={applyAll}
-            onValueChange={setApplyAll}
+            subtitle={
+              remember
+                ? `New payments from ${displayName(t)} go to ${t.category}${samePayee > 1 ? `, like the other ${samePayee - 1} here` : ''}`
+                : 'Off: Gullak decides each new payment on its own'
+            }
+            value={remember}
+            onValueChange={(on) => {
+              if (on) {
+                // Remember the current category and file this payee's other payments the same way.
+                void setCategory(t.id, t.category, true).then(() => rule.setRemembered(true));
+              } else {
+                void rule.forget();
+              }
+            }}
           />
         </Section>
       ) : null}
