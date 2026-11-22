@@ -157,6 +157,15 @@ describe('parseSms — credits', () => {
   });
 });
 
+describe('parseSms — mandate payments still count', () => {
+  it('the actual UPI mandate debit is a payment', () => {
+    const t = txn(
+      'UPI Mandate:\nSent Rs.139.00\nfrom HDFC Bank A/c 3062\nTo SPOTIFY INDIA PVT LTD\n15/11/26\nRef 104479864647\nNot You? Call 18002586161/SMS BLOCK UPI to 7308080808',
+    );
+    expect(t).toMatchObject({ amount: 139, direction: 'debit', payee: 'SPOTIFY INDIA PVT LTD', upiRef: '104479864647' });
+  });
+});
+
 describe('parseSms — ignored', () => {
   const cases: [string, string][] = [
     ['otp', '123456 is your OTP for txn of Rs 250.00 at SWIGGY on HDFC Bank card 5678. Valid for 3 mins. Do not share.'],
@@ -166,6 +175,15 @@ describe('parseSms — ignored', () => {
     ['bill due', 'Your HDFC Bank Credit Card 5678 statement is generated. Total amount due Rs 12,345.00, due on 25-11-26.'],
     ['card bill payment', 'Payment of Rs 12,345.00 received towards your HDFC Bank Credit Card 5678. Thank you.'],
     ['promotion', 'Get flat Rs 500 cashback on your next recharge! Use code SAVE500. T&C apply.'],
+    // Mandate / AutoPay notices: no money moves, so no payment and nothing in "Not recognised".
+    [
+      'e-mandate reminder (HDFC)',
+      'E-Mandate!\nRs.139.00 will be deducted on 12/11/26, 00:00:00\nFor SPOTIFY INDIA PVT LTD mandate\nUMN 4caead50c476f2efe063e8eee20adc2b@okhdfcbank\nMaintain Balance\n-HDFC Bank',
+    ],
+    ['autopay cancelled (HDFC)', 'AutoPay (E-mandate) Cancelled!\nFor COURSERA INC\nDate:27/10/2026\nVia: HDFC Bank Card 3367\nSI Hub ID:HD9YrlRtJk\nTnC'],
+    ['mandate created', 'UPI AutoPay mandate created successfully for NETFLIX for Rs 649.00 on your A/c XX1234. -ICICI Bank'],
+    ['mandate paused', 'Your e-mandate for AMAZON PRIME of Rs 1499 has been paused. -Axis Bank'],
+    ['standing instruction revoked', 'Standing Instruction for HOTSTAR on Card XX5678 has been revoked as requested. -SBI Card'],
   ];
   for (const [name, text] of cases) {
     it(name, () => {

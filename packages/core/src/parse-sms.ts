@@ -36,6 +36,11 @@ const IGNORE_RULES: [string, RegExp][] = [
     /\b(statement\s+(is\s+)?generated|total\s+(amt|amount)\s+due|min(imum)?\.?\s+(amt|amount)\s+due|is\s+due\s+on|payment\s+due)\b/i,
   ],
   ['card bill payment', /\breceived\s+towards\s+your\b.*\bcard\b/i],
+  // AutoPay / e-mandate / standing-instruction status notices move no money (the debit comes as its own SMS).
+  [
+    'mandate notice',
+    /\b(auto\s*pay|e-?mandate|mandate|standing\s+instruction)\b[\s\S]*\b(cancell?ed|created|registered|paused|revoked|modified|activated|set\s+up)\b|\b(cancell?ed|revoked|paused)\b[\s\S]*\b(auto\s*pay|e-?mandate|mandate|standing\s+instruction)\b/i,
+  ],
 ];
 
 const PROMO = /\b(cashback|offer|use\s+code|t&c|apply\s+now|pre-?approved|voucher|coupon|discount|win\b|congratulations)/i;
