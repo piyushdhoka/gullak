@@ -1,6 +1,5 @@
 /** Plain name, for sentences and screen readers. */
 export const APP_NAME = 'Gullak';
-export const APP_NAME_HI = 'गुल्लक';
 
 /**
  * The logotype: one word, half Latin, half Devanagari ("Gul" + "लक" = Gullak).
@@ -9,5 +8,4 @@ export const APP_NAME_HI = 'गुल्लक';
 export const WORDMARK = { latin: 'Gul', devanagari: 'लक' } as const;
 export const WORDMARK_TEXT = `${WORDMARK.latin}${WORDMARK.devanagari}`;
 
-export const TAGLINE_HI = 'हर पैसे का हिसाब, अपने आप।';
 export const TAGLINE_EN = 'Every rupee you spend, recorded on its own.';

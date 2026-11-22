@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 
-import { APP_NAME, TAGLINE_HI, WORDMARK } from '@/lib/app';
+import { APP_NAME, WORDMARK } from '@/lib/app';
 
 import styles from './landing.module.css';
 
@@ -41,9 +41,6 @@ export function Landing({ onOpen }: { onOpen: () => void }) {
           </span>
         </p>
         <h1 className={styles.h1}>Every rupee, sorted on its own.</h1>
-        <p className={styles.heroHi} lang="hi">
-          {TAGLINE_HI}
-        </p>
         <p className={styles.lede}>
           Pay with GPay, PhonePe or a card. Your bank texts you, and Gullak turns that SMS into a sorted, totalled
           expense a few seconds later. Nothing to type.
@@ -196,9 +193,6 @@ export function Landing({ onOpen }: { onOpen: () => void }) {
         <Mascot size={96} />
         <p className={styles.footerMark}>
           <Logotype />
-        </p>
-        <p className={styles.footerHi} lang="hi">
-          {TAGLINE_HI}
         </p>
         <GetIt onOpen={onOpen} onGuide={() => setGuide(true)} />
       </footer>

@@ -1,12 +1,14 @@
-// The category model, SemIf ("semantic if") style, as on openjev.com:
-// the model sees the payment and a lettered list of categories, and we read the probability it gives
-// each letter for its next token. No text generation, no parsing of free-form answers: one forward pass,
-// and an honest confidence number.
+// The category model, SemIf ("semantic if") style, as on openjev.com.
+//
+// The model writes the category *name*, constrained by a grammar to exactly one of our 14 categories,
+// and we compute an honest confidence from its token probabilities: at every step, the chosen token's
+// probability compared with the other tokens that would still spell a valid category.
+// (Letter options were tried first; Qwen3 0.6B can't map letters to meanings reliably.)
 //
 // Model: Qwen3 0.6B (the smallest SemIf model), served by llama.cpp's llama-server. The fixed part of the
 // prompt comes first so llama-server's prompt cache reuses it; only the payment at the end is new.
 
-import { CATEGORIES, type Category } from './categorize.ts';
+import { CATEGORIES, isCategory, type Category } from './categorize.ts';
 import type { Direction } from './parse-sms.ts';
 
 export interface ClassifyInput {
@@ -18,38 +20,33 @@ export interface ClassifyInput {
 
 export interface ClassifyResult {
   category: string;
-  /** 0–1, the model's probability for this category's letter. */
+  /** 0–1: how sure the model was, among the valid category names only. */
   confidence: number;
 }
 
-/** What each option means, so a small model has something to go on. Order = letters A, B, C… */
+/** What each category means, so a small model has something to go on. */
 const OPTIONS: Record<Category, string> = {
-  Food: 'restaurants, cafes, tea stalls, sweets, food delivery like Swiggy or Zomato',
+  Food: 'restaurants, cafes, tea stalls, sweets, biryani, food delivery like Swiggy or Zomato',
   Groceries: 'supermarkets, kirana stores, milk, vegetables, quick commerce like Blinkit, Zepto, BigBasket',
-  Shopping: 'online shopping, clothes, electronics, home goods, Amazon, Flipkart, Myntra',
-  Transport: 'cabs, autos, fuel, metro, parking, tolls, FASTag, Uber, Ola, Rapido',
+  Shopping: 'online shopping, clothes, shoes, electronics, sports goods, Amazon, Flipkart, Myntra, Decathlon',
+  Transport: 'cabs, autos, fuel, petrol pump, metro, parking, tolls, FASTag, Uber, Ola, Rapido',
   Travel: 'flights, trains, buses, hotels, IRCTC, MakeMyTrip, IndiGo',
   Bills: 'phone recharge, electricity, internet, gas, water, rent, insurance premium, loan EMI',
-  Entertainment: 'movies, streaming, music, games, events, Netflix, Spotify, BookMyShow',
-  Health: 'pharmacy, medical store, doctor, hospital, lab tests, gym',
+  Entertainment: 'movies, cinema, streaming, music, games, events, Netflix, Spotify, PVR, BookMyShow',
+  Health: 'pharmacy, medical store, chemist, doctor, hospital, lab tests, gym, fitness',
   Investments: 'mutual funds, SIP, stocks, gold, Groww, Zerodha',
-  Transfers: 'money sent to a person, or between my own accounts',
+  Transfers: 'money sent to a person by name or phone number, or between my own accounts',
   Cash: 'ATM cash withdrawal',
-  Income: 'salary or money received from someone',
+  Income: 'salary, or money received from a person or company',
   Refund: 'refund, reversal or cashback of an earlier payment',
-  Other: 'none of the above, or impossible to tell',
+  Other: 'none of the above, or impossible to tell (for example a bare QR code ID)',
 };
-
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-/** Letter → category, e.g. A → Food. */
-export const OPTION_LETTERS: Record<string, Category> = Object.fromEntries(CATEGORIES.map((c, i) => [LETTERS[i], c]));
 
 const PREFIX =
   '<|im_start|>system\n' +
-  'You sort Indian bank payments into one category. Reply with the single letter of the best category.<|im_end|>\n' +
+  'You sort Indian bank payments into one category. Reply with the category name only.<|im_end|>\n' +
   '<|im_start|>user\nCategories:\n' +
-  CATEGORIES.map((c, i) => `${LETTERS[i]}) ${c}: ${OPTIONS[c]}`).join('\n') +
+  CATEGORIES.map((c) => `- ${c}: ${OPTIONS[c]}`).join('\n') +
   '\n\nPayment:\n';
 
 /** The full prompt for one payment (Qwen3 chat format, thinking switched off). */
@@ -60,12 +57,27 @@ export function buildCategoryPrompt(input: ClassifyInput): string {
     PREFIX +
     `${input.direction === 'debit' ? 'Money paid to' : 'Money received from'}: ${who || 'unknown'}\n` +
     `Bank SMS: ${sms}\n` +
-    'Which category? Reply with one letter.<|im_end|>\n' +
+    'Which category?<|im_end|>\n' +
     '<|im_start|>assistant\n<think>\n\n</think>\n\n'
   );
 }
 
-/** One candidate next token, as llama-server reports it (older and newer response shapes). */
+/** GBNF grammar: the answer must be exactly one category name. */
+export const CATEGORY_GRAMMAR = `root ::= ${CATEGORIES.map((c) => `"${c}"`).join(' | ')}`;
+
+/** Request body for llama-server's /completion endpoint. */
+export function completionRequest(input: ClassifyInput) {
+  return {
+    prompt: buildCategoryPrompt(input),
+    grammar: CATEGORY_GRAMMAR,
+    n_predict: 8,
+    n_probs: 20,
+    temperature: 0,
+    cache_prompt: true,
+  };
+}
+
+/** One candidate token, as llama-server reports it (older and newer response shapes). */
 export interface TokenProb {
   token?: string;
   tok_str?: string;
@@ -73,39 +85,39 @@ export interface TokenProb {
   prob?: number;
 }
 
+interface Step extends TokenProb {
+  top_logprobs?: TokenProb[];
+  probs?: TokenProb[];
+}
+
+const tokenText = (t: TokenProb) => t.token ?? t.tok_str ?? '';
+const tokenProb = (t: TokenProb) => (typeof t.prob === 'number' ? t.prob : typeof t.logprob === 'number' ? Math.exp(t.logprob) : 0);
+
 /**
- * Picks the category from the model's next-token probabilities. Tokens that aren't an option letter
- * are ignored; the same letter in different spellings (" A", "A") is added up.
+ * Reads a grammar-constrained answer. Confidence multiplies, for each generated token, its probability
+ * divided by the probability of all candidates that would still spell some category (so tokens the
+ * grammar ruled out don't count, and neither does probability mass the model put on other words).
  */
-export function pickCategory(candidates: TokenProb[]): ClassifyResult | null {
-  const mass = new Map<Category, number>();
-  for (const c of candidates) {
-    const letter = (c.token ?? c.tok_str ?? '').trim().replace(/[).:]$/, '').toUpperCase();
-    const category = OPTION_LETTERS[letter];
-    if (!category || letter.length !== 1) continue;
-    const p = typeof c.prob === 'number' ? c.prob : typeof c.logprob === 'number' ? Math.exp(c.logprob) : 0;
-    mass.set(category, (mass.get(category) ?? 0) + p);
+export function readAnswer(response: unknown): ClassifyResult | null {
+  const r = response as { content?: string; completion_probabilities?: Step[] };
+  const category = (r?.content ?? '').trim();
+  if (!isCategory(category)) return null;
+  let prefix = '';
+  let confidence = 1;
+  for (const step of r.completion_probabilities ?? []) {
+    const chosen = tokenText(step);
+    if (!chosen) continue;
+    const candidates = step.top_logprobs ?? step.probs ?? [];
+    let valid = 0;
+    let chosenP = tokenProb(step);
+    for (const c of candidates) {
+      const text = tokenText(c);
+      if (CATEGORIES.some((k) => k.startsWith(prefix + text) || (prefix + text).startsWith(k))) valid += tokenProb(c);
+      if (text === chosen) chosenP = tokenProb(c);
+    }
+    if (valid > 0) confidence *= Math.min(1, chosenP / valid);
+    prefix += chosen;
+    if (prefix.trim() === category) break;
   }
-  let best: ClassifyResult | null = null;
-  for (const [category, p] of mass) if (!best || p > best.confidence) best = { category, confidence: Math.min(1, p) };
-  return best;
-}
-
-/** Request body for llama-server's /completion endpoint. */
-export function completionRequest(input: ClassifyInput) {
-  return {
-    prompt: buildCategoryPrompt(input),
-    n_predict: 1,
-    n_probs: 20,
-    temperature: 0,
-    cache_prompt: true,
-  };
-}
-
-/** Reads the first token's candidates out of a llama-server /completion response. */
-export function candidatesFrom(response: unknown): TokenProb[] {
-  const first = (response as { completion_probabilities?: unknown[] })?.completion_probabilities?.[0] as
-    | { top_logprobs?: TokenProb[]; probs?: TokenProb[] }
-    | undefined;
-  return first?.top_logprobs ?? first?.probs ?? [];
+  return { category, confidence };
 }

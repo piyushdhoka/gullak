@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { categorize, displayName, isOpaquePayee } from '../src/categorize.ts';
-import { buildCategoryPrompt, candidatesFrom, completionRequest, OPTION_LETTERS, pickCategory } from '../src/classify.ts';
+import { buildCategoryPrompt, CATEGORY_GRAMMAR, completionRequest, readAnswer } from '../src/classify.ts';
 
 const base = { direction: 'debit' as const, channel: 'upi' as const, payee: null, vpa: null, text: '' };
 
@@ -35,50 +35,57 @@ describe('displayName', () => {
 describe('category model prompt (SemIf style)', () => {
   const input = { payee: 'SHREE GANESH MEDICAL', vpa: null, direction: 'debit' as const, text: 'Sent Rs.120.00 To SHREE GANESH MEDICAL' };
 
-  it('lists every category as a letter and ends where the answer letter goes', () => {
+  it('lists every category by name and ends where the answer goes', () => {
     const p = buildCategoryPrompt(input);
-    expect(p).toContain('A) Food:');
-    expect(p).toContain('N) Other:');
+    expect(p).toContain('- Food:');
+    expect(p).toContain('- Other:');
     expect(p).toContain('Money paid to: SHREE GANESH MEDICAL');
     expect(p.endsWith('<|im_start|>assistant\n<think>\n\n</think>\n\n')).toBe(true);
-    expect(OPTION_LETTERS.H).toBe('Health');
   });
 
   it('keeps the fixed instructions first so the server can cache them', () => {
     const a = buildCategoryPrompt(input);
     const b = buildCategoryPrompt({ ...input, payee: 'ZEPTO', text: 'Rs 374 to zepto' });
-    const shared = a.slice(0, a.indexOf('Payment:'));
-    expect(b.startsWith(shared)).toBe(true);
+    expect(b.startsWith(a.slice(0, a.indexOf('Payment:')))).toBe(true);
   });
 
-  it('asks for exactly one token with probabilities', () => {
-    expect(completionRequest(input)).toMatchObject({ n_predict: 1, n_probs: 20, temperature: 0, cache_prompt: true });
+  it('restricts the answer to the 14 category names', () => {
+    const req = completionRequest(input);
+    expect(req.grammar).toBe(CATEGORY_GRAMMAR);
+    expect(CATEGORY_GRAMMAR).toContain('"Groceries" | "Shopping"');
+    expect(req).toMatchObject({ temperature: 0, n_probs: 20, cache_prompt: true });
   });
 });
 
-describe('pickCategory', () => {
-  it('reads letter probabilities and adds up spellings of the same letter', () => {
-    const r = pickCategory([
-      { token: 'H', logprob: Math.log(0.55) },
-      { token: ' H', logprob: Math.log(0.2) },
-      { token: 'A', logprob: Math.log(0.1) },
-      { token: 'The', logprob: Math.log(0.05) },
-    ]);
+describe('readAnswer', () => {
+  it('uses only probability mass that could still spell a category', () => {
+    const r = readAnswer({
+      content: 'Health',
+      completion_probabilities: [
+        { token: 'Health', logprob: Math.log(0.6), top_logprobs: [
+          { token: 'Health', logprob: Math.log(0.6) },
+          { token: 'Food', logprob: Math.log(0.2) },
+          { token: 'The', logprob: Math.log(0.2) },
+        ] },
+      ],
+    });
     expect(r?.category).toBe('Health');
     expect(r?.confidence).toBeCloseTo(0.75, 5);
   });
 
-  it('understands the older {tok_str, prob} shape', () => {
-    expect(pickCategory([{ tok_str: 'B', prob: 0.9 }])).toEqual({ category: 'Groceries', confidence: 0.9 });
+  it('multiplies across tokens of a multi-token name', () => {
+    const r = readAnswer({
+      content: 'Transport',
+      completion_probabilities: [
+        { token: 'Trans', top_logprobs: [{ token: 'Trans', prob: 0.8 }, { token: 'Travel', prob: 0.2 }] },
+        { token: 'port', top_logprobs: [{ token: 'port', prob: 0.5 }, { token: 'fers', prob: 0.5 }] },
+      ],
+    });
+    expect(r).toEqual({ category: 'Transport', confidence: 0.4 });
   });
 
-  it('returns null when no option letter came up', () => {
-    expect(pickCategory([{ token: 'Hello', logprob: -0.1 }, { token: 'Z', logprob: -0.2 }])).toBeNull();
-  });
-
-  it('reads candidates out of a llama-server response', () => {
-    const response = { content: 'H', completion_probabilities: [{ token: 'H', top_logprobs: [{ token: 'H', logprob: -0.2 }] }] };
-    expect(candidatesFrom(response)).toEqual([{ token: 'H', logprob: -0.2 }]);
-    expect(candidatesFrom({})).toEqual([]);
+  it('rejects anything that is not a category', () => {
+    expect(readAnswer({ content: 'Snacks' })).toBeNull();
+    expect(readAnswer({})).toBeNull();
   });
 });

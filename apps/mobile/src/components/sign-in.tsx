@@ -15,7 +15,7 @@ import {
   signUp,
   verifySignupCode,
 } from '@/lib/api';
-import { TAGLINE_EN, TAGLINE_HI } from '@/lib/app';
+import { TAGLINE_EN } from '@/lib/app';
 import { Button, Field } from '@/ui/controls';
 import { BackChevron } from '@/ui/icons';
 import { Section } from '@/ui/list';
@@ -30,13 +30,13 @@ import { layout, useColors } from '@/ui/theme';
  */
 type Mode = 'signin' | 'signup' | 'verify' | 'forgot' | 'resetCode' | 'recovery';
 
-const COPY: Record<Mode, { hi: string; en: string; button: string }> = {
-  signin: { hi: TAGLINE_HI, en: TAGLINE_EN, button: 'Sign In' },
-  signup: { hi: 'अपना गुल्लक बनाइए।', en: 'Create your account with your email and a password.', button: 'Create Account' },
-  verify: { hi: 'बस एक कदम।', en: 'Enter the 6-digit code we emailed you.', button: 'Confirm Email' },
-  forgot: { hi: 'कोई बात नहीं।', en: 'We’ll email you a code to set a new password.', button: 'Send Code' },
-  resetCode: { hi: 'नया पासवर्ड।', en: 'Enter the code from the email and your new password.', button: 'Save Password' },
-  recovery: { hi: 'नया पासवर्ड।', en: 'Choose a new password for your account.', button: 'Save Password' },
+const COPY: Record<Mode, { title: string; en: string; button: string }> = {
+  signin: { title: 'Welcome back', en: TAGLINE_EN, button: 'Sign In' },
+  signup: { title: 'Start your Gullak', en: 'Create your account with your email and a password.', button: 'Create Account' },
+  verify: { title: 'One more step', en: 'Enter the 6-digit code we emailed you.', button: 'Confirm Email' },
+  forgot: { title: 'Forgot your password?', en: 'We’ll email you a code to set a new password.', button: 'Send Code' },
+  resetCode: { title: 'Set a new password', en: 'Enter the code from the email and your new password.', button: 'Save Password' },
+  recovery: { title: 'Set a new password', en: 'Choose a new password for your account.', button: 'Save Password' },
 };
 
 const MIN_PASSWORD = 8;
@@ -137,8 +137,8 @@ export function SignIn({ onBack, recovering = false }: { onBack?: () => void; re
         ) : null}
         <Image source={require('../../assets/images/logo-192.png')} style={styles.icon} accessibilityIgnoresInvertColors />
         <Wordmark size={46} />
-        <Text variant="title3" weight="600" align="center" style={styles.taglineHi} lang="hi">
-          {copy.hi}
+        <Text variant="title3" weight="600" align="center" style={styles.taglineHi}>
+          {copy.title}
         </Text>
         <Text variant="body" color="secondaryLabel" align="center" style={styles.tagline}>
           {needsCode ? `${copy.en} (${addr})` : copy.en}

@@ -12,7 +12,7 @@
 // Parsing and categorising live in packages/core (shared with the Android app and the tests).
 // Categories come only from the owner's saved choices and the AI model; nothing else guesses.
 
-import { candidatesFrom, completionRequest, pickCategory } from '../../../packages/core/src/classify.ts';
+import { completionRequest, readAnswer } from '../../../packages/core/src/classify.ts';
 import { processCapture, sha256Hex, type CaptureResult, type ClassifyResult, type IngestDeps } from '../../../packages/core/src/ingest-core.ts';
 import { admin, CORS, json, notifyUser } from '../_shared/server.ts';
 
@@ -125,7 +125,7 @@ function makeDeps(origin: Origin, quiet: boolean): IngestDeps {
             console.error('classifier answered', res.status);
             return null;
           }
-          return pickCategory(candidatesFrom(await res.json()));
+          return readAnswer(await res.json());
         }
       : undefined,
     async insertTransaction(row) {
