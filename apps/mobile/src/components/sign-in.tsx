@@ -36,7 +36,7 @@ type Mode = 'signin' | 'signup' | 'verify' | 'forgot' | 'resetCode' | 'recovery'
 const COPY: Record<Mode, { title: string; en: string; button: string }> = {
   signin: { title: 'Welcome back', en: TAGLINE_EN, button: 'Sign In' },
   signup: { title: 'Start your Gullak', en: 'Create your account with your email and a password.', button: 'Create Account' },
-  verify: { title: 'One more step', en: 'Enter the 6-digit code we emailed you.', button: 'Confirm Email' },
+  verify: { title: 'One more step', en: 'Enter the code we emailed you, or tap the link in that email and come back to sign in.', button: 'Confirm Email' },
   forgot: { title: 'Forgot your password?', en: 'We’ll email you a code to set a new password.', button: 'Send Code' },
   resetCode: { title: 'Set a new password', en: 'Enter the code from the email and your new password.', button: 'Save Password' },
   recovery: { title: 'Set a new password', en: 'Choose a new password for your account.', button: 'Save Password' },
@@ -240,6 +240,10 @@ export function SignIn({ start = 'signin', recovering = false }: { start?: Start
                   </>
                 ) : needsCode ? (
                   <>
+                    {mode === 'verify' ? (
+                      // The email link confirms the account on its own; after tapping it, just sign in.
+                      <Button title="I tapped the link in the email. Sign in" kind="plain" size="small" onPress={() => go('signin')} />
+                    ) : null}
                     <Button title="Send a new code" kind="plain" size="small" onPress={resend} />
                     <Button title="Use a different email" kind="plain" size="small" tint="secondaryLabel" onPress={() => go(mode === 'verify' ? 'signup' : 'forgot')} />
                   </>
