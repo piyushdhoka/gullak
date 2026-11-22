@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   formatPush,
+  isBankSender,
   normaliseReceivedAt,
   processCapture,
   type IngestDeps,
@@ -187,5 +188,18 @@ describe('formatPush', () => {
   it('celebrates money in', () => {
     const p = formatPush({ ...base, direction: 'credit', merchant: 'ar03', category: 'Income', category_source: 'heuristic', amount: 10 }, 'x');
     expect(p.title).toBe('+₹10 from ar03 💰');
+  });
+});
+
+describe('isBankSender', () => {
+  it('accepts registered sender IDs', () => {
+    for (const id of ['VM-HDFCBK', 'AD-AXISBK-S', 'VM-HDFCBN-S', 'AD-DCBBNK', 'JD-SBIUPI-T', 'vm-icicit']) {
+      expect(isBankSender(id)).toBe(true);
+    }
+  });
+  it('rejects phone numbers, short codes and names', () => {
+    for (const id of ['+919876543210', '9876543210', '56767', 'Mom', 'HDFCBK', 'VM-', 'A-HDFCBK', '']) {
+      expect(isBankSender(id)).toBe(false);
+    }
   });
 });

@@ -88,6 +88,14 @@ export function looksFinancial(text: string): boolean {
   return FINANCIAL.test(text);
 }
 
+/**
+ * Banks and merchants send from registered sender IDs ("VM-HDFCBK", "AD-AXISBK-S"); people send from phone
+ * numbers. The Android app only reads and forwards SMS from IDs of this shape.
+ */
+export function isBankSender(address: string): boolean {
+  return /^[A-Z]{2}-[A-Z0-9]{3,9}(-[A-Z])?$/i.test(address.trim());
+}
+
 export async function sha256Hex(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', bytes);

@@ -2,12 +2,13 @@
 // finished steps get the sprout-green check, the first unfinished one is outlined in clay.
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { useData } from '@/lib/data';
 import { fullDate, signedMoney } from '@/lib/format';
 import { copyText, enablePush, getConfig, hasSubscription, isStandalone, pushState, type PushState } from '@/lib/push';
 import { friendly, ingestUrl, supabase } from '@/lib/api';
+import { askSmsPermission, FIRST_IMPORT_MONTHS, hasSmsPermission, smsMark, smsSupported, syncSms, type SyncResult } from '@/lib/sms';
 import { useClientValue } from '@/lib/use-client';
 import { Badge, Button, Card } from '@/ui/controls';
 import { PixelBar, Sticker } from '@/ui/sticker';
@@ -23,17 +24,22 @@ export default function SetupScreen() {
   const push = usePushStep();
   const key = useKeyStep();
   const test = useTestStep();
+  const sms = useSmsStep();
 
   // The Shortcut has no signal of its own; the capture address being used means it works.
   const done = [installed, push.done, !!key.info, !!key.info?.last_used_at, test.ok];
   const current = done.findIndex((d) => !d);
   const stateOf = (i: number): StepState => (done[i] ? 'done' : i === current ? 'current' : 'todo');
   const count = done.filter(Boolean).length;
+  // Home Screen install, Web Push and the iOS Shortcut are iPhone/web only; the Android app keeps just the test.
+  const web = Platform.OS === 'web';
 
   return (
     <Screen title="Setup">
       <Text variant="subheadline" color="secondaryLabel" style={styles.intro}>
-        Every bank SMS on your iPhone becomes a categorised payment here within seconds. Do these steps once.
+        {web
+          ? 'Every bank SMS on your iPhone becomes a categorised payment here within seconds. Do these steps once.'
+          : 'Gullak reads the bank SMS on this phone and turns every payment into a categorised entry. Do this once.'}
       </Text>
       {mode === 'demo' ? (
         <Card style={styles.card}>
@@ -44,13 +50,21 @@ export default function SetupScreen() {
         </Card>
       ) : null}
 
-      <Progress count={count} total={done.length} />
-
-      <InstallStep state={stateOf(0)} installed={installed} />
-      <NotificationStep state={stateOf(1)} {...push} />
-      <KeyStep state={stateOf(2)} {...key} />
-      <ShortcutStep state={stateOf(3)} />
-      <TestStep state={stateOf(4)} {...test} last />
+      {web ? (
+        <>
+          <Progress count={count} total={done.length} />
+          <InstallStep state={stateOf(0)} installed={installed} />
+          <NotificationStep state={stateOf(1)} {...push} />
+          <KeyStep state={stateOf(2)} {...key} />
+          <ShortcutStep state={stateOf(3)} />
+          <TestStep n={5} state={stateOf(4)} {...test} last />
+        </>
+      ) : (
+        <>
+          <SmsStep {...sms} />
+          <TestStep n={2} state={test.ok ? 'done' : sms.mark ? 'current' : 'todo'} {...test} last />
+        </>
+      )}
     </Screen>
   );
 }
@@ -392,9 +406,89 @@ function useTestStep() {
   return { busy, result, ok, send, live: mode === 'live' };
 }
 
-function TestStep({ state, busy, result, send, live, last }: { state: StepState; last?: boolean } & ReturnType<typeof useTestStep>) {
+function useSmsStep() {
+  const { session, mode, refresh } = useData();
+  const userId = session?.userId;
+  const [mark, setMark] = useState<number | null>(null);
+  const [denied, setDenied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<SyncResult | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!smsSupported || !userId) return;
+    smsMark(userId).then(setMark);
+  }, [userId]);
+
+  const run = async () => {
+    if (!userId) return;
+    setResult(null);
+    if (!(await hasSmsPermission()) && !(await askSmsPermission())) {
+      setDenied(true);
+      return;
+    }
+    setDenied(false);
+    setBusy(true);
+    setProgress(null);
+    try {
+      const from = new Date();
+      from.setMonth(from.getMonth() - FIRST_IMPORT_MONTHS);
+      const r = await syncSms(userId, { fromMs: from.getTime(), onProgress: setProgress });
+      setResult(
+        r.sent
+          ? `Done: ${r.saved} new payment${r.saved === 1 ? '' : 's'}${r.duplicate ? `, ${r.duplicate} already here` : ''}. New payees wait in Review.`
+          : 'No new bank SMS since the last check.',
+      );
+      if (r.saved) refresh();
+    } catch (e) {
+      setResult(`Stopped: ${friendly(e)} Tap again to carry on from here.`);
+    } finally {
+      setMark(await smsMark(userId));
+      setBusy(false);
+    }
+  };
+
+  return { mark, denied, busy, progress, result, run, live: mode === 'live' };
+}
+
+function SmsStep({ mark, denied, busy, progress, result, run, live }: ReturnType<typeof useSmsStep>) {
+  const note = !smsSupported
+    ? 'Reading SMS needs the installed Gullak app. It doesn’t work inside Expo Go.'
+    : denied
+      ? 'SMS access is off. Turn it on in Settings › Apps › Gullak › Permissions › SMS, then tap again.'
+      : busy
+        ? `Sending… ${progress?.sent ?? 0} SMS so far, ${progress?.saved ?? 0} new payments.`
+        : (result ??
+          (mark
+            ? 'Done. New bank SMS are picked up whenever you open Gullak.'
+            : `Imports the last ${FIRST_IMPORT_MONTHS} months. Only SMS from bank sender IDs (like VM-HDFCBK) about payments are sent; personal messages never leave this phone.`));
   return (
-    <Step n={5} title="Test it" state={state} last={last}>
+    <Step n={1} title="Read bank SMS" state={mark ? 'done' : 'current'}>
+      <Note color={denied ? 'red' : 'secondaryLabel'}>{note}</Note>
+      {denied ? <Button title="Open Settings" kind="plain" onPress={() => Linking.openSettings()} style={styles.plain} /> : null}
+      <Button
+        title={mark ? 'Check for New SMS' : `Import Last ${FIRST_IMPORT_MONTHS} Months`}
+        kind={mark ? 'tinted' : 'filled'}
+        onPress={run}
+        loading={busy}
+        disabled={!smsSupported || !live}
+        style={styles.button}
+      />
+    </Step>
+  );
+}
+
+function TestStep({
+  n,
+  state,
+  busy,
+  result,
+  send,
+  live,
+  last,
+}: { n: number; state: StepState; last?: boolean } & ReturnType<typeof useTestStep>) {
+  return (
+    <Step n={n} title="Test it" state={state} last={last}>
       <Note>{result ?? 'Sends a ₹1 sample SMS through the same path as the Shortcut. You can hide it afterwards.'}</Note>
       <Button title="Send Test SMS" kind="tinted" onPress={send} loading={busy} disabled={!live} style={styles.button} />
       <View style={styles.connected}>

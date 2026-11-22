@@ -37,7 +37,7 @@ const COPY: Record<Mode, { title: string; en: (email: string) => string; button:
   forgot: { title: 'Forgot your password?', en: () => 'We’ll email you a link to set a new password.', button: 'Send Link' },
   checkReset: {
     title: 'Check your email',
-    en: (email) => `If ${email || 'that email'} has an account, a reset link is on its way. Tap it to choose a new password.`,
+    en: (email) => `If ${email || 'that email'} has an account, a reset link is on its way. Tap it to choose a new password, then come back here and sign in.`,
     button: 'Back to Sign In',
   },
   recovery: { title: 'Set a new password', en: () => 'Choose a new password for your account.', button: 'Save Password' },

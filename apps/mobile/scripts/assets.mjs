@@ -76,13 +76,16 @@ await save(png(square(48, 0.02)), 'assets/images/favicon.png');
 await save(png(square(1024, 0.1, CREAM)), 'assets/images/icon.png');
 await save(png(square(288, 0.04)), 'assets/images/splash-icon.png');
 await save(png(square(192, 0.1, CREAM)), 'assets/images/logo-192.png');
-// Notification badge (Android status bar, Chrome): one colour on transparent; the system tints it.
-await save(
-  sharp({ create: { width: 96, height: 96, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } } }).composite([
-    { input: await (await square(96, 0.06)).png().toBuffer(), blend: 'dest-in' },
-  ]),
-  'public/badge-96.png',
-);
+/** White silhouette of the mascot on transparent: the system tints it. */
+const silhouette = async (size, pad) =>
+  sharp({ create: { width: size, height: size, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } } }).composite([
+    { input: await (await square(size, pad)).png().toBuffer(), blend: 'dest-in' },
+  ]);
+// Notification badge (Android status bar, Chrome).
+await save(silhouette(96, 0.06), 'public/badge-96.png');
+// Android adaptive icon (cream backgroundColor in app.json): the launcher mask keeps only the middle 66 of 108 dp.
+await save(png(square(1024, 0.22)), 'assets/images/android-icon-foreground.png');
+await save(silhouette(1024, 0.22), 'assets/images/android-icon-monochrome.png');
 // QR code for laptop visitors: scan with the iPhone camera to open Gullak in Safari.
 const qr = await QRCode.toString('https://gullak.sparkstudio.co.in', {
   type: 'svg',
