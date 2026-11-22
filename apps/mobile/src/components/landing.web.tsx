@@ -822,8 +822,9 @@ function NumberTicker({ value, prefix = '', suffix = '' }: { value: number; pref
 function Marquee({ items, reverse }: { items: string[]; reverse?: boolean }) {
   return (
     <div className={`${styles.marquee} ${reverse ? styles.marqueeReverse : ''}`}>
-      {[0, 1].map((copy) => (
-        <ul key={copy} className={styles.marqueeTrack} aria-hidden={copy === 1 || undefined}>
+      {/* Three copies: each slides by its own width, so two always cover the strip, however wide. */}
+      {[0, 1, 2].map((copy) => (
+        <ul key={copy} className={styles.marqueeTrack} aria-hidden={copy > 0 || undefined}>
           {items.map((item) => (
             <li key={item} className={styles.marqueePill}>
               {item}

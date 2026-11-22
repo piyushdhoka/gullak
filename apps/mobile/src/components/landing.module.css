@@ -775,6 +775,9 @@
 .marquee {
   display: flex;
   overflow: hidden;
+  /* Same width as the page content, so zooming out never stretches the strip past its chips. */
+  max-width: 1280px;
+  margin: 0 auto;
   padding: 6px 0 9px;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
