@@ -76,6 +76,40 @@ export async function enablePush(): Promise<{ ok: true } | { ok: false; message:
   }
 }
 
+/**
+ * Self-heal: when notifications are already allowed on this device, make sure the server has this
+ * device saved. The browser keeps its push subscription across account switches and database resets,
+ * so the app can show "On" while the server has no row and nothing ever arrives. Runs silently on launch;
+ * never asks for permission (that needs a tap: enablePush).
+ */
+export async function syncPush(): Promise<void> {
+  if (pushState() !== 'granted') return;
+  try {
+    const { vapidPublicKey: publicKey } = await getConfig();
+    if (!publicKey) return;
+    const reg = (await navigator.serviceWorker.getRegistration()) ?? (await navigator.serviceWorker.register('/sw.js'));
+    await navigator.serviceWorker.ready;
+    const sub =
+      (await reg.pushManager.getSubscription()) ??
+      (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) }));
+    const json = sub.toJSON();
+    await supabase.from('devices').upsert(
+      {
+        platform: 'web',
+        name: isIOS() ? 'iPhone' : 'Browser',
+        endpoint: sub.endpoint,
+        p256dh: json.keys?.p256dh ?? '',
+        auth: json.keys?.auth ?? '',
+        user_agent: navigator.userAgent.slice(0, 300),
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: 'endpoint' },
+    );
+  } catch {
+    // Offline or blocked: the next launch tries again.
+  }
+}
+
 export interface AppConfig {
   vapidPublicKey: string | null;
   /** iCloud link to the shared "Gullak Capture" Shortcut, once published. */

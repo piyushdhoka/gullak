@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { isDemo } from '@/lib/api';
+import { syncPush } from '@/lib/push';
 import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
@@ -37,6 +39,11 @@ export function PushBanner() {
   const [push, setPush] = useState<BannerPush | null>(null);
   const [y] = useState(() => new Animated.Value(-220));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Signed in: make sure the server knows this device if notifications are already allowed.
+  useEffect(() => {
+    if (!isDemo) void syncPush();
+  }, []);
 
   useEffect(() => {
     const onPush: Listener = (p) => setPush(p);
