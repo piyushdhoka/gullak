@@ -158,21 +158,34 @@ describe('normaliseReceivedAt', () => {
 });
 
 describe('formatPush', () => {
-  it('reads like an iOS notification', () => {
-    const p = formatPush(
-      {
-        amount: 1250.5,
-        direction: 'debit',
-        merchant: 'Swiggy',
-        category: 'Food',
-        category_source: 'merchant',
-        bank: 'HDFC Bank',
-        account: '1234',
-      } as NewTransaction,
-      'abc',
-    );
-    expect(p.title).toBe('−₹1,250.50 · Swiggy');
-    expect(p.body).toBe('Food · HDFC Bank •1234');
+  const base = {
+    amount: 1250.5,
+    direction: 'debit',
+    merchant: 'Swiggy',
+    payee: 'SWIGGY',
+    category: 'Food',
+    category_source: 'merchant',
+    bank: 'HDFC Bank',
+    account: '1234',
+  } as NewTransaction;
+
+  it('speaks in Gullak’s voice: the fact in the title, a line and buttons below', () => {
+    const p = formatPush(base, 'abc');
+    expect(p.title).toBe('₹1,250.50 at Swiggy 🍔');
+    expect(p.body.length).toBeGreaterThan(0);
     expect(p.url).toBe('/transaction?id=abc');
+    expect(p.tag).toBe('abc');
+    expect((p as { actions?: { title: string }[] }).actions?.map((a) => a.title)).toEqual(['Change category', 'My month']);
+  });
+
+  it('sends a new payee to Review', () => {
+    const p = formatPush({ ...base, merchant: null, payee: 'Q482915273', category: 'Other', category_source: 'unknown' }, 'abc');
+    expect(p.title).toBe('₹1,250.50 to Q482915273 🤔');
+    expect(p.url).toBe('/review');
+  });
+
+  it('celebrates money in', () => {
+    const p = formatPush({ ...base, direction: 'credit', merchant: 'ar03', category: 'Income', category_source: 'heuristic', amount: 10 }, 'x');
+    expect(p.title).toBe('+₹10 from ar03 💰');
   });
 });

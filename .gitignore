@@ -54,3 +54,6 @@ example
 
 # Design notes and docs stay local (not on GitHub)
 docs/
+
+# Supabase CLI local cache (created by `supabase login` / deploy)
+supabase/.temp/

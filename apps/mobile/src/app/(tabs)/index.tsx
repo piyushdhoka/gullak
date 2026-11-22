@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { monthParam, MonthSwitcher } from '@/components/month-switcher';
 import { JarCard } from '@/components/jar-card';
+import { UnreadSms } from '@/components/unread-sms';
 import { CategoryTile, TxnRow } from '@/components/txn-row';
 import { jarPlan } from '@gullak/core/jars.ts';
 import { categoryMeta } from '@/lib/categories';
@@ -43,6 +44,7 @@ export default function SummaryScreen() {
       onRefresh={mode === 'live' ? refresh : undefined}
       refreshing={refreshing}>
       <QuickActions review={review.length} payments={review.reduce((n, r) => n + r.count, 0)} />
+      <UnreadSms />
       {mode === 'demo' ? <DemoBanner /> : null}
       {empty ? (
         <EmptyState />

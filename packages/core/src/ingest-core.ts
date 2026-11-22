@@ -3,6 +3,7 @@
 
 import { categorize, isCategory, isOpaquePayee, type CategorySource } from './categorize.ts';
 import { parseSms, type Channel, type Direction } from './parse-sms.ts';
+import { paymentPush, type RichPush } from './push-voice.ts';
 
 export type SmsStatus = 'parsed' | 'duplicate' | 'ignored' | 'unrecognised';
 
@@ -104,26 +105,22 @@ export function normaliseReceivedAt(value: string | null | undefined, now: Date)
   return now.toISOString();
 }
 
-const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
-
-export function formatPush(txn: NewTransaction, id: string): PushPayload {
-  const sign = txn.direction === 'debit' ? '−' : '+';
-  const who = txn.merchant ?? txn.payee ?? (txn.direction === 'debit' ? 'Payment' : 'Money received');
-  const where = [txn.bank, txn.account ? `•${txn.account}` : null].filter(Boolean).join(' ');
-  if (txn.category_source === 'unknown') {
-    return {
-      title: `${sign}${inr.format(txn.amount)} · ${who}`,
-      body: 'New payee. Tap to pick a category once.',
-      url: '/review',
-      tag: id,
-    };
-  }
-  return {
-    title: `${sign}${inr.format(txn.amount)} · ${who}`,
-    body: [txn.category, where].filter(Boolean).join(' · '),
-    url: `/transaction?id=${id}`,
-    tag: id,
-  };
+/**
+ * The notification for a saved payment, in Gullak's voice (push-voice.ts): the amount and who in the title,
+ * a short line plus action buttons below. A RichPush is a PushPayload with extras the service worker draws.
+ */
+export function formatPush(txn: NewTransaction, id: string): RichPush {
+  return paymentPush({
+    id,
+    amount: txn.amount,
+    direction: txn.direction,
+    merchant: txn.merchant,
+    payee: txn.payee,
+    category: txn.category,
+    category_source: txn.category_source,
+    bank: txn.bank,
+    account: txn.account,
+  });
 }
 
 export async function processCapture(deps: IngestDeps, input: CaptureInput): Promise<CaptureResult> {

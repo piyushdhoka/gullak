@@ -10,7 +10,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-        <title>Gulलक · Gullak</title>
+        <title>Gullak · Every rupee, sorted on its own</title>
         <meta name="description" content="Every rupee you spend, recorded on its own." />
 
         {/* The main text font: fetch it early so the first paint already uses Geist. */}

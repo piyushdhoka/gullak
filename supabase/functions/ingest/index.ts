@@ -15,6 +15,7 @@
 
 import { decisionClassifier } from '../../../packages/core/src/decision.ts';
 import { processCapture, sha256Hex, type CaptureResult, type IngestDeps } from '../../../packages/core/src/ingest-core.ts';
+import { importPush } from '../../../packages/core/src/push-voice.ts';
 import { admin, CORS, json, notifyUser } from '../_shared/server.ts';
 
 const MAX_BODY = 512 * 1024;
@@ -158,12 +159,8 @@ Deno.serve(async (req) => {
     }
     const saved = results.filter((r) => r.status === 'saved').length;
     if (backfill && saved > 0) {
-      await notifyUser(who.userId, {
-        title: `Imported ${saved} payment${saved === 1 ? '' : 's'}`,
-        body: 'Your past bank SMS are in Gullak. Tap to review new payees.',
-        url: '/review',
-        tag: 'backfill',
-      }).catch(() => {});
+      const newPayees = results.filter((r) => r.status === 'saved' && r.transaction?.category_source === 'unknown').length;
+      await notifyUser(who.userId, importPush(saved, newPayees)).catch(() => {});
     }
     return json(200, {
       saved,

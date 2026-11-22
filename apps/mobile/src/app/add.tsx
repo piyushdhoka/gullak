@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   amountLine: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4, minHeight: 72 },
   rupee: { opacity: 0.9 },
   band: { marginTop: 2, marginBottom: 10, opacity: 0.9 },
-  head: { marginHorizontal: layout.inset + layout.inset, marginBottom: 8 },
+  head: { marginHorizontal: layout.inset + 2, marginBottom: 8 },
   saveBar: {
     position: 'absolute',
     left: 0,
