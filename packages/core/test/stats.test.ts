@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { budgetProgress, groupByDay, recurringPayments, summarize, trend } from '../src/lib/stats.ts';
-import type { Transaction } from '../src/lib/types.ts';
+import { budgetProgress, groupByDay, recurringPayments, summarize, trend } from '../src/stats.ts';
+import type { Transaction } from '../src/types.ts';
 
 let n = 0;
 function t(date: string, amount: number, extra: Partial<Transaction> = {}): Transaction {

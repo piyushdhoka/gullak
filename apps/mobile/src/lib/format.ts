@@ -59,3 +59,8 @@ export function displayName(t: Transaction) {
 export function accountLabel(t: Pick<Transaction, 'bank' | 'account'>) {
   return [t.bank, t.account ? `•${t.account}` : null].filter(Boolean).join(' ') || null;
 }
+
+/** A calendar date in either direction: "15 Mar", or "15 Mar 2027" outside this year. */
+export function shortDate(date: Date, now = new Date()) {
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+}

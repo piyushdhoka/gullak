@@ -46,10 +46,11 @@ example
 .env
 .secrets/
 
-legacy/server/data/
 *.db
-legacy/server/.env
 
 
 # local-only env (no secrets today, but keep it off GitHub)
 .env.development
+
+# Design notes and docs stay local (not on GitHub)
+docs/

@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { explainCategory, type Explanation } from '@gullak/core';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { CategoryTile } from '@/components/txn-row';
 import { CATEGORIES } from '@/lib/categories';
@@ -17,6 +18,7 @@ const CHANNEL: Record<string, string> = {
   card: 'Card',
   netbanking: 'Bank transfer',
   atm: 'ATM',
+  cash: 'Cash',
   other: 'Other',
 };
 
@@ -27,6 +29,33 @@ const SOURCE_LABEL: Record<string, string | undefined> = {
   model: 'Guessed automatically, check it',
   unknown: 'Tap Change to pick one; it’s remembered for this payee',
 };
+
+/** "Why?": the reason for the category, and three one-tap fixes. */
+function Why({ why, onPick }: { why: Explanation; onPick: (category: string) => void }) {
+  const c = useColors();
+  return (
+    <Section header="Why this category?">
+      <View style={styles.why}>
+        <Text variant="subheadline">{why.reason}</Text>
+        <View style={styles.whyChips}>
+          {why.alternatives.map((cat) => (
+            <Pressable
+              key={cat}
+              onPress={() => onPick(cat)}
+              accessibilityRole="button"
+              accessibilityLabel={`Change to ${cat}`}
+              style={({ pressed }) => [styles.whyChip, { backgroundColor: c.fillTertiary, opacity: pressed ? 0.6 : 1 }]}>
+              <CategoryTile category={cat} size={22} />
+              <Text variant="footnote" weight="600">
+                {cat}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    </Section>
+  );
+}
 
 export default function TransactionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -114,6 +143,14 @@ export default function TransactionScreen() {
         ) : null}
       </Section>
 
+      <Why
+        why={explainCategory(
+          { direction: t.direction, channel: t.channel === 'cash' ? 'other' : t.channel, payee: t.payee, vpa: t.vpa, text: sms ?? '' },
+          { category: t.category, source: t.category_source },
+        )}
+        onPick={(cat) => setCategory(t.id, cat, applyAll)}
+      />
+
       <Section header="Note">
         <NoteField
           key={t.id}
@@ -163,6 +200,9 @@ function NoteField({ initial, onSave }: { initial: string; onSave: (note: string
 }
 
 const styles = StyleSheet.create({
+  why: { padding: layout.inset, gap: 12 },
+  whyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  whyChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, borderRadius: 16 },
   head: { alignItems: 'center', paddingHorizontal: layout.inset, paddingTop: 16, paddingBottom: 28 },
   amount: { fontSize: 40, lineHeight: 48, fontWeight: '700', marginTop: 6 },
   note: { minHeight: 44, paddingHorizontal: layout.inset, paddingVertical: 11 },

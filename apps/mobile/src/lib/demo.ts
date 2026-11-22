@@ -101,3 +101,15 @@ export const demoBudgets: { category: string; monthly_limit: number }[] = [
   { category: 'Groceries', monthly_limit: 5000 },
   { category: 'Shopping', monthly_limit: 4000 },
 ];
+
+/** Sample savings goals for demo mode. */
+export const demoJars = [
+  { id: 'demo-goa', name: 'Goa trip', emoji: '🏖️', target: 30000, target_date: new Date(new Date().getFullYear(), new Date().getMonth() + 4, 15).toISOString().slice(0, 10), created_at: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString() },
+  { id: 'demo-phone', name: 'New phone', emoji: '📱', target: 45000, target_date: null, created_at: new Date().toISOString() },
+];
+
+export const demoJarEntries = [
+  { id: 'demo-e1', jar_id: 'demo-goa', amount: 5000, note: 'Start', created_at: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 2).toISOString() },
+  { id: 'demo-e2', jar_id: 'demo-goa', amount: 3000, note: null, created_at: new Date().toISOString() },
+  { id: 'demo-e3', jar_id: 'demo-phone', amount: 12000, note: null, created_at: new Date().toISOString() },
+];

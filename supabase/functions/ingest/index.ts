@@ -10,10 +10,9 @@
 //
 // Deployed with JWT verification off: authentication is the capture key or the user's own JWT.
 // Parsing and categorising live in packages/core (shared with the Android app and the tests).
-// Categories come only from the owner's saved choices and the AI model; nothing else guesses.
+// Categories: the owner's saved choice, then the hand-built rules in packages/core; unknown → Review.
 
-import { completionRequest, readAnswer } from '../../../packages/core/src/classify.ts';
-import { processCapture, sha256Hex, type CaptureResult, type ClassifyResult, type IngestDeps } from '../../../packages/core/src/ingest-core.ts';
+import { processCapture, sha256Hex, type CaptureResult, type IngestDeps } from '../../../packages/core/src/ingest-core.ts';
 import { admin, CORS, json, notifyUser } from '../_shared/server.ts';
 
 const MAX_BODY = 512 * 1024;
@@ -87,11 +86,6 @@ async function readBody(req: Request): Promise<{ messages: Message[]; batch: boo
   }
 }
 
-// e.g. https://gullak.sparkstudio.co.in/llm (Caddy → llama-server on the EC2 box). Unset = no model: all to Review.
-const CLASSIFIER_URL = Deno.env.get('CLASSIFIER_URL')?.replace(/\/$/, '');
-// The model is the only classifier, so give it time; on a timeout the payment still saves and goes to Review.
-const CLASSIFIER_TIMEOUT_MS = Number(Deno.env.get('CLASSIFIER_TIMEOUT_MS') ?? '') || 8000;
-
 function makeDeps(origin: Origin, quiet: boolean): IngestDeps {
   return {
     async insertSms(row) {
@@ -112,22 +106,6 @@ function makeDeps(origin: Origin, quiet: boolean): IngestDeps {
         .maybeSingle();
       return data?.category ?? null;
     },
-    // The category model: Qwen3 0.6B on llama-server, scored SemIf-style (see packages/core/src/classify.ts).
-    classify: CLASSIFIER_URL
-      ? async (input): Promise<ClassifyResult | null> => {
-          const res = await fetch(`${CLASSIFIER_URL}/completion`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('CLASSIFIER_TOKEN') ?? ''}` },
-            body: JSON.stringify(completionRequest(input)),
-            signal: AbortSignal.timeout(CLASSIFIER_TIMEOUT_MS),
-          });
-          if (!res.ok) {
-            console.error('classifier answered', res.status);
-            return null;
-          }
-          return readAnswer(await res.json());
-        }
-      : undefined,
     async insertTransaction(row) {
       const { data, error } = await admin
         .from('transactions')
@@ -153,12 +131,11 @@ Deno.serve(async (req) => {
 
   const origin: Origin = who.via === 'key' ? 'shortcut' : test ? 'test' : 'android';
   const deps = makeDeps(origin, backfill);
-  const minConfidence = Number(Deno.env.get('CLASSIFIER_MIN_CONFIDENCE') ?? '') || undefined;
 
   try {
     if (!batch) {
       const [m] = messages;
-      return json(200, await processCapture(deps, { userId: who.userId, text: m.text, receivedAt: m.receivedAt, minConfidence }));
+      return json(200, await processCapture(deps, { userId: who.userId, text: m.text, receivedAt: m.receivedAt }));
     }
 
     // Old messages (backfill) keep their own dates; live ones must be recent, as on the iPhone path.
@@ -167,7 +144,7 @@ Deno.serve(async (req) => {
       const receivedAt = backfill && m.receivedAt ? backfillDate(m.receivedAt) : m.receivedAt;
       const now = backfill && receivedAt ? new Date(receivedAt) : undefined;
       try {
-        results.push(await processCapture(deps, { userId: who.userId, text: m.text, receivedAt, now, minConfidence }));
+        results.push(await processCapture(deps, { userId: who.userId, text: m.text, receivedAt, now }));
       } catch (err) {
         console.error('batch item failed', err);
         results.push({ status: 'unrecognised', reason: 'could not save' });

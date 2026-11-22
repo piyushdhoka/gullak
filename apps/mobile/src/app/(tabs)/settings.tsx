@@ -13,7 +13,7 @@ import { Text } from '@/ui/text';
 import { useColors } from '@/ui/theme';
 
 export default function SettingsScreen() {
-  const { mode, session, inbox, transactions, budgets, signOut, deleteAccount } = useData();
+  const { mode, session, inbox, transactions, budgets, jars, signOut, deleteAccount } = useData();
   const c = useColors();
   const hidden = transactions.filter((t) => t.hidden).length;
   const [deleting, setDeleting] = useState(false);
@@ -73,6 +73,27 @@ export default function SettingsScreen() {
         />
         <Row
           left={
+            <IconTile color={c.gold}>
+              <Text style={{ fontSize: 16 }}>🐷</Text>
+            </IconTile>
+          }
+          title="Gullak Jars"
+          value={jars.length ? String(jars.length) : undefined}
+          chevron
+          onPress={() => router.push('/jars')}
+        />
+        <Row
+          left={
+            <IconTile color={c.tint}>
+              <Text style={{ fontSize: 16 }}>💬</Text>
+            </IconTile>
+          }
+          title="Ask Gullak"
+          chevron
+          onPress={() => router.push('/ask')}
+        />
+        <Row
+          left={
             <IconTile color={c.brown}>
               <Text style={{ fontSize: 16 }}>💵</Text>
             </IconTile>
@@ -108,9 +129,9 @@ export default function SettingsScreen() {
       </Section>
 
 
-      <Section header="About" footer={`${APP_NAME} reads the SMS your bank sends (forwarded by an iOS Shortcut on iPhone) and sorts each payment with a small AI model. Personal messages are discarded without being stored.`}>
+      <Section header="About" footer={`${APP_NAME} reads the SMS your bank sends (forwarded by an iOS Shortcut on iPhone) and sorts each payment automatically. Personal messages are discarded without being stored.`}>
         <Row title="Version" value="0.1.0" />
-        <Row title="Categories by" value="Qwen3 0.6B" />
+        <Row title="Capture" value="Bank SMS" />
       </Section>
 
       {mode === 'live' ? (
@@ -118,7 +139,7 @@ export default function SettingsScreen() {
           <Section>
             <Row title="Sign Out" destructive onPress={signOut} />
           </Section>
-          <Section footer={deleteError ?? 'Deletes your account, every payment, message, budget and device. This can’t be undone.'}>
+          <Section footer={deleteError ?? 'Deletes your account and everything in it: payments, messages, budgets, jars and devices. This can’t be undone.'}>
             <Row title={deleting ? 'Deleting…' : 'Delete Account'} destructive disabled={deleting} onPress={removeAccount} />
           </Section>
         </>

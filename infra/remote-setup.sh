@@ -6,12 +6,11 @@
 #   - forwards /ingest/<capture key> (what the iOS Shortcuts post to) to Supabase's ingest function,
 #     so capture addresses keep working whatever the backend is.
 #
-# INGEST=supabase (default) sends /ingest to Supabase and switches the old Node server off.
-# INGEST=local keeps /ingest on the old Node + SQLite server (only used while moving data across).
+# Deploying also switches off the old Node + SQLite server and the old model server if they're still there
+# (their data stays on disk: /var/lib/gullak).
 set -euo pipefail
 
 DOMAIN="${DOMAIN:?set DOMAIN}"
-INGEST="${INGEST:-supabase}"
 SUPABASE_HOST="${SUPABASE_HOST:-rupjxysgksruhhlokbvx.supabase.co}"
 CADDY_VERSION="2.11.9"
 APP=/opt/gullak
@@ -34,23 +33,11 @@ echo "== unpack release"
 test -f /tmp/gullak-release.tgz
 sudo rm -rf "$APP.new" && sudo mkdir -p "$APP.new"
 sudo tar -xzf /tmp/gullak-release.tgz -C "$APP.new"
-if [ "$INGEST" = "local" ]; then
-  NPM_BIN="$(command -v npm || echo /usr/bin/npm-24)"
-  (cd "$APP.new/server" && sudo "$NPM_BIN" ci --omit=dev --no-audit --no-fund --loglevel=error)
-fi
 sudo rm -rf "$APP.old" && { [ -d "$APP" ] && sudo mv "$APP" "$APP.old" || true; }
 sudo mv "$APP.new" "$APP"
 sudo chown -R root:root "$APP"
 sudo chmod -R a+rX "$APP/dist"
 
-if [ "$INGEST" = "local" ]; then
-  INGEST_BLOCK="reverse_proxy 127.0.0.1:8787"
-else
-  INGEST_BLOCK="rewrite * /functions/v1{path}
-		reverse_proxy https://${SUPABASE_HOST} {
-			header_up Host {upstream_hostport}
-		}"
-fi
 
 REDIRECTS=""
 for old in ${OLD_DOMAINS:-}; do
@@ -70,15 +57,10 @@ ${REDIRECTS}${DOMAIN} {
 	# iOS Shortcuts post bank SMS here: /ingest/<capture key>
 	@ingest path /ingest /ingest/*
 	handle @ingest {
-		${INGEST_BLOCK}
-	}
-
-	# The category model (llama-server, see llm-setup.sh). Only these two endpoints are exposed, and
-	# llama-server itself rejects requests without its API key (held by the Supabase ingest function).
-	@llm path /llm/completion /llm/health
-	handle @llm {
-		uri strip_prefix /llm
-		reverse_proxy 127.0.0.1:8090
+		rewrite * /functions/v1{path}
+		reverse_proxy https://${SUPABASE_HOST} {
+			header_up Host {upstream_hostport}
+		}
 	}
 
 	handle {
@@ -132,14 +114,10 @@ EOF
 sudo -u caddy /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 ||
   { sudo -u caddy /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; exit 1; }
 
-echo "== services (ingest -> ${INGEST})"
+echo "== services"
 sudo systemctl daemon-reload
-if [ "$INGEST" = "local" ]; then
-  sudo systemctl restart gullak
-else
-  # The old SQLite server is retired; its data stays in ${DATA} as a backup.
-  sudo systemctl disable --now gullak >/dev/null 2>&1 || true
-fi
+# The old SQLite server and the old local model are retired; the SQLite data stays in ${DATA} as a backup.
+sudo systemctl disable --now gullak gullak-llm >/dev/null 2>&1 || true
 sudo systemctl enable caddy >/dev/null 2>&1
 sudo systemctl reload caddy 2>/dev/null || sudo systemctl restart caddy
 sleep 2

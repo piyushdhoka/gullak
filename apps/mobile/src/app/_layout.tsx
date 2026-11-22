@@ -67,6 +67,9 @@ function Gate() {
       <Stack.Screen name="add" options={{ presentation: 'modal' }} />
       <Stack.Screen name="budgets" />
       <Stack.Screen name="subscriptions" />
+      <Stack.Screen name="jars" />
+      <Stack.Screen name="jar" />
+      <Stack.Screen name="ask" />
     </Stack>
   );
 }

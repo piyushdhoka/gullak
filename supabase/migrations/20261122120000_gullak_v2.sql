@@ -6,6 +6,7 @@
 --   * delete account (delete_my_account)
 --   * devices: Web Push (iPhone PWA) and Expo push (Android), replacing push_subscriptions
 --   * where each SMS came from (iOS Shortcut, Android app, test)
+--   * Gullak Jars: savings goals and the money put into them
 
 -- ---------- where an SMS came from ----------
 alter table public.sms_inbox
@@ -87,6 +88,40 @@ alter table public.devices
     (endpoint is not null and p256dh is not null and auth is not null) or expo_token is not null
   );
 
+-- ---------- Gullak Jars: savings goals ----------
+create table public.jars (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name text not null check (char_length(btrim(name)) between 1 and 40),
+  emoji text check (char_length(emoji) <= 8),
+  target numeric(12, 2) not null check (target > 0 and target <= 100000000),
+  target_date date,
+  archived boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index jars_user on public.jars (user_id, created_at);
+alter table public.jars enable row level security;
+create policy "own jars" on public.jars
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Money put into (positive) or taken out of (negative) a jar.
+create table public.jar_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  jar_id uuid not null references public.jars (id) on delete cascade,
+  amount numeric(12, 2) not null check (amount <> 0 and abs(amount) <= 100000000),
+  note text check (char_length(note) <= 200),
+  created_at timestamptz not null default now()
+);
+create index jar_entries_jar on public.jar_entries (jar_id, created_at);
+alter table public.jar_entries enable row level security;
+-- The jar must be the caller's own too.
+create policy "own jar entries" on public.jar_entries
+  for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid())
+              and exists (select 1 from public.jars j where j.id = jar_id and j.user_id = (select auth.uid())));
+
 -- ---------- delete account ----------
 -- Deletes the caller's account and, through cascades, every row they own.
 create or replace function public.delete_my_account()
@@ -110,4 +145,4 @@ grant execute on function public.add_manual_transaction(numeric, text, text, tex
 grant execute on function public.delete_my_account() to authenticated;
 
 -- Budgets change on other devices too.
-alter publication supabase_realtime add table public.budgets;
+alter publication supabase_realtime add table public.budgets, public.jars, public.jar_entries;

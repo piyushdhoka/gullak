@@ -3,7 +3,9 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { monthParam, MonthSwitcher } from '@/components/month-switcher';
+import { JarCard } from '@/components/jar-card';
 import { CategoryTile, TxnRow } from '@/components/txn-row';
+import { jarPlan } from '@gullak/core/jars.ts';
 import { categoryMeta } from '@/lib/categories';
 import { useData } from '@/lib/data';
 import { money, monthName, shortMonth } from '@/lib/format';
@@ -34,6 +36,7 @@ export default function SummaryScreen() {
   return (
     <Screen title="Summary" right={<AddButton />} onRefresh={mode === 'live' ? refresh : undefined} refreshing={refreshing}>
       {mode === 'demo' ? <DemoBanner /> : null}
+      <AskRow />
       {review.length ? <ReviewBanner payees={review.length} payments={review.reduce((n, r) => n + r.count, 0)} /> : null}
       {empty ? (
         <EmptyState />
@@ -43,6 +46,7 @@ export default function SummaryScreen() {
           <Hero s={s} />
           <StatGrid s={s} />
           <Budgets s={s} budgets={budgets} />
+          <Jars />
           <DailyChart s={s} />
           <Trend s={s} />
           <Subscriptions />
@@ -56,6 +60,66 @@ export default function SummaryScreen() {
         </>
       )}
     </Screen>
+  );
+}
+
+function AskRow() {
+  const c = useColors();
+  return (
+    <Section style={{ marginBottom: 20 }}>
+      <Row
+        left={
+          <View style={[styles.reviewDot, { backgroundColor: c.tint }]}>
+            <Text weight="700" style={{ color: '#fff' }}>
+              ?
+            </Text>
+          </View>
+        }
+        title="Ask Gullak"
+        subtitle="“How much did I spend on chai this month?”"
+        chevron
+        onPress={() => router.push('/ask')}
+      />
+    </Section>
+  );
+}
+
+function Jars() {
+  const { jars, jarEntries, transactions } = useData();
+  if (!jars.length) {
+    return (
+      <Section>
+        <Row title="Start a Gullak Jar" subtitle="Save for a trip, a phone, anything" chevron onPress={() => router.push('/jars')} />
+      </Section>
+    );
+  }
+  return (
+    <View style={{ marginBottom: 24 }}>
+      <Text variant="footnote" color="secondaryLabel" style={styles.jarsHead}>
+        GULLAK JARS
+      </Text>
+      {jars.slice(0, 2).map((j) => {
+        const p = jarPlan(j, jarEntries, transactions);
+        return (
+          <JarCard
+            key={j.id}
+            emoji={j.emoji ?? '🐷'}
+            name={j.name}
+            saved={p.saved}
+            target={j.target}
+            progress={p.progress}
+            line={p.perWeek != null ? `${money(p.perWeek, { whole: true })} a week${p.status === 'behind' ? ' · behind' : ''}` : p.status === 'done' ? 'Full!' : `${money(p.left, { whole: true })} to go`}
+            warn={p.status === 'behind'}
+            onPress={() => router.push({ pathname: '/jar', params: { id: j.id } })}
+          />
+        );
+      })}
+      <Pressable onPress={() => router.push('/jars')} accessibilityRole="button" style={styles.jarsAll}>
+        <Text color="tint" variant="subheadline">
+          {jars.length > 2 ? `All ${jars.length} jars` : 'All jars'}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -421,6 +485,8 @@ const styles = StyleSheet.create({
   track: { height: 6, borderRadius: 3, overflow: 'hidden' },
   reviewDot: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   add: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  jarsHead: { marginHorizontal: layout.inset + 16, marginBottom: 6 },
+  jarsAll: { marginHorizontal: layout.inset + 16, marginTop: -4 },
   addPlus: { color: '#fff', fontSize: 22, lineHeight: 24 },
   trend: { height: 130, flexDirection: 'row', gap: 8 },
   trendSlot: { flex: 1, alignItems: 'center', gap: 4 },

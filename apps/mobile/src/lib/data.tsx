@@ -16,7 +16,8 @@ import {
   supabase,
   type Session,
 } from './api';
-import { demoBudgets, demoInbox, demoTransactions } from './demo';
+import { demoBudgets, demoInbox, demoJarEntries, demoJars, demoTransactions } from './demo';
+import type { Jar, JarEntry } from '@gullak/core/jars.ts';
 import type { Budget } from './stats';
 import type { ReviewItem, SmsMessage, Transaction } from './types';
 
@@ -51,6 +52,12 @@ interface DataContextValue {
   /** Cash or any payment without an SMS. Resolves once saved (throws a readable error otherwise). */
   addManual: (entry: ManualEntry) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  /** Gullak Jars (savings goals) and the money put into them. */
+  jars: Jar[];
+  jarEntries: JarEntry[];
+  addJar: (jar: { name: string; emoji: string | null; target: number; target_date: string | null }) => Promise<string>;
+  addToJar: (jarId: string, amount: number, note?: string) => Promise<void>;
+  deleteJar: (jarId: string) => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
@@ -84,13 +91,15 @@ interface Fetched {
   transactions?: Transaction[];
   inbox?: SmsMessage[];
   budgets?: Budget[];
+  jars?: Jar[];
+  jarEntries?: JarEntry[];
   error: string | null;
 }
 
 async function fetchAll(): Promise<Fetched> {
   const since = new Date();
   since.setMonth(since.getMonth() - 13, 1);
-  const [tx, inbox, budgets] = await Promise.all([
+  const [tx, inbox, budgets, jars, jarEntries] = await Promise.all([
     supabase
       .from('transactions')
       .select(TXN_COLUMNS)
@@ -104,12 +113,16 @@ async function fetchAll(): Promise<Fetched> {
       .order('received_at', { ascending: false })
       .limit(100),
     supabase.from('budgets').select('category, monthly_limit').order('category'),
+    supabase.from('jars').select('id, name, emoji, target, target_date, created_at').eq('archived', false).order('created_at'),
+    supabase.from('jar_entries').select('id, jar_id, amount, note, created_at').order('created_at', { ascending: false }).limit(2000),
   ]);
   return {
     // numeric columns can arrive as strings; the app works in numbers.
     transactions: tx.data ? (tx.data as Transaction[]).map((t) => ({ ...t, amount: Number(t.amount) })) : undefined,
     inbox: inbox.data ? (inbox.data as SmsMessage[]) : undefined,
     budgets: budgets.data ? (budgets.data as Budget[]).map((b) => ({ ...b, monthly_limit: Number(b.monthly_limit) })) : undefined,
+    jars: jars.data ? (jars.data as Jar[]).map((j) => ({ ...j, target: Number(j.target) })) : undefined,
+    jarEntries: jarEntries.data ? (jarEntries.data as JarEntry[]).map((e) => ({ ...e, amount: Number(e.amount) })) : undefined,
     error: tx.error ? friendly(tx.error) : null,
   };
 }
@@ -122,6 +135,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>(() => (isDemo ? demoTransactions() : []));
   const [inbox, setInbox] = useState<SmsMessage[]>(() => (isDemo ? demoInbox : []));
   const [budgets, setBudgets] = useState<Budget[]>(() => (isDemo ? demoBudgets : []));
+  const [jars, setJars] = useState<Jar[]>(() => (isDemo ? demoJars : []));
+  const [jarEntries, setJarEntries] = useState<JarEntry[]>(() => (isDemo ? demoJarEntries : []));
   const [loading, setLoading] = useState(!isDemo);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +163,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setTransactions([]);
         setInbox([]);
         setBudgets([]);
+        setJars([]);
+        setJarEntries([]);
       }
     });
     return () => {
@@ -161,6 +178,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (r.transactions) setTransactions(r.transactions);
     if (r.inbox) setInbox(r.inbox);
     if (r.budgets) setBudgets(r.budgets);
+    if (r.jars) setJars(r.jars);
+    if (r.jarEntries) setJarEntries(r.jarEntries);
   }, []);
 
   const load = useCallback(async () => {
@@ -191,6 +210,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .channel(`txns:${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, loadSoon)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `user_id=eq.${userId}` }, loadSoon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jars', filter: `user_id=eq.${userId}` }, loadSoon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jar_entries', filter: `user_id=eq.${userId}` }, loadSoon)
       .subscribe();
     const tick = setInterval(() => {
       if (AppState.currentState === 'active') load();
@@ -343,6 +364,45 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [write],
   );
 
+  const addJar = useCallback(
+    async (j: { name: string; emoji: string | null; target: number; target_date: string | null }) => {
+      if (isDemo) {
+        const id = `demo-jar-${Date.now()}`;
+        setJars((list) => [...list, { id, ...j, created_at: new Date().toISOString() }]);
+        return id;
+      }
+      const { data, error: err } = await supabase.from('jars').insert(j).select('id').single();
+      if (err) throw new Error(friendly(err));
+      await load();
+      return data.id as string;
+    },
+    [load],
+  );
+
+  const addToJar = useCallback(
+    async (jarId: string, amount: number, note?: string) => {
+      const entry: JarEntry = { id: `local-${Date.now()}`, jar_id: jarId, amount, note: note?.trim() || null, created_at: new Date().toISOString() };
+      setJarEntries((list) => [entry, ...list]);
+      if (isDemo) return;
+      const { error: err } = await supabase.from('jar_entries').insert({ jar_id: jarId, amount, note: entry.note });
+      if (err) {
+        setJarEntries((list) => list.filter((e) => e.id !== entry.id));
+        throw new Error(friendly(err));
+      }
+      await load();
+    },
+    [load],
+  );
+
+  const deleteJar = useCallback(
+    async (jarId: string) => {
+      setJars((list) => list.filter((j) => j.id !== jarId));
+      setJarEntries((list) => list.filter((e) => e.jar_id !== jarId));
+      await write(() => supabase.from('jars').delete().eq('id', jarId));
+    },
+    [write],
+  );
+
   const review = useMemo(() => reviewQueue(transactions), [transactions]);
 
   const value = useMemo<DataContextValue>(
@@ -366,10 +426,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setBudget,
       addManual,
       deleteTransaction,
+      jars,
+      jarEntries,
+      addJar,
+      addToJar,
+      deleteJar,
       signOut: apiSignOut,
       deleteAccount: apiDeleteAccount,
     }),
-    [mode, ready, session, recovering, transactions, inbox, review, loading, refreshing, error, refresh, setCategory, resolveReview, updateTransaction, dismissSms, budgets, setBudget, addManual, deleteTransaction],
+    [mode, ready, session, recovering, transactions, inbox, review, loading, refreshing, error, refresh, setCategory, resolveReview, updateTransaction, dismissSms, budgets, setBudget, addManual, deleteTransaction, jars, jarEntries, addJar, addToJar, deleteJar],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

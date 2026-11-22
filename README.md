@@ -12,8 +12,6 @@ apps/mobile      Expo app: Android build + iOS PWA (web build)
 packages/core    @gullak/core: SMS parser, categoriser, capture pipeline (shared everywhere)
 supabase         migrations + Edge Functions (ingest, config)
 infra            EC2 + Caddy deploy for the PWA and the /ingest address
-legacy/server    old SQLite server, removed after data migration
-docs             ARCHITECTURE, API (backend contract), ANDROID, FEATURES, SETUP
 ```
 
 ## Develop
@@ -25,5 +23,3 @@ npm run typecheck    # app, core and Edge Functions
 npm run lint
 ```
 
-Start with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), then [docs/API.md](docs/API.md).
-Feature ideas and roadmap: [docs/FEATURES.md](docs/FEATURES.md). Android SMS plan: [docs/ANDROID.md](docs/ANDROID.md).

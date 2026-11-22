@@ -5,7 +5,7 @@ import { StyleSheet } from 'react-native';
 
 import { CategoryTile } from '@/components/txn-row';
 import { useData } from '@/lib/data';
-import { dayLabel, money } from '@/lib/format';
+import { money, shortDate } from '@/lib/format';
 import { recurringMonthlyTotal, recurringPayments } from '@/lib/stats';
 import { Card } from '@/ui/controls';
 import { Row, Section } from '@/ui/list';
@@ -39,7 +39,7 @@ export default function SubscriptionsScreen() {
               key={r.key}
               left={<CategoryTile category={r.category} />}
               title={r.name}
-              subtitle={`Next around ${dayLabel(r.next)} · ${r.months} months`}
+              subtitle={`Next around ${shortDate(r.next)} · ${r.months} months`}
               value={
                 <Text tabular weight="500">
                   {money(r.amount, { whole: true })}
