@@ -28,6 +28,8 @@ interface Message {
   content: string;
   used?: string[];
   error?: boolean;
+  /** Server signature for Gullu's answers; sent back so the server trusts them as history. */
+  sig?: string;
 }
 
 const SUGGESTIONS = [
@@ -126,15 +128,15 @@ export default function AskScreen() {
     setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
     try {
       if (isDemo) throw new Error('Gullu answers from your real payments. Sign in to use it.');
-      const { data, error } = await supabase.functions.invoke<{ answer: string; used: string[] }>('ask', {
-        body: { messages: next.filter((m) => !m.error).map(({ role, content }) => ({ role, content })) },
+      const { data, error } = await supabase.functions.invoke<{ answer: string; used: string[]; sig?: string }>('ask', {
+        body: { messages: next.filter((m) => !m.error).map(({ role, content, sig }) => (sig ? { role, content, sig } : { role, content })) },
       });
       if (error) {
         // Supabase wraps the function's JSON error; surface its message.
         const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
         throw new Error(body?.error ?? friendly(error));
       }
-      setMessages((m) => [...m, { role: 'assistant', content: data!.answer, used: data!.used }]);
+      setMessages((m) => [...m, { role: 'assistant', content: data!.answer, used: data!.used, sig: data!.sig }]);
     } catch (e) {
       setMessages((m) => [...m, { role: 'assistant', content: (e as Error).message, error: true }]);
     } finally {

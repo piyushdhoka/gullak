@@ -1,6 +1,14 @@
 // POST /functions/v1/ask   Authorization: Bearer <user JWT>
-// Body: { "messages": [{ "role": "user" | "assistant", "content": "..." }, ...] }   (last 10 used)
-// → { "answer": "...", "used": ["spending", ...] }
+// Body: { "messages": [{ "role": "user" | "assistant", "content": "...", "sig"?: "..." }, ...] }   (last 10 used)
+// → { "answer": "...", "used": ["spending", ...], "sig": "..." }
+//
+// Guardrails (packages/core/src/guard.ts):
+//   * rate limit per user (public.ai_allow: 6 a minute, 60 a day, plus a daily ceiling for everyone) → 429
+//   * request body capped at 16 KB
+//   * assistant turns are only trusted if they carry the signature this function returned with them,
+//     so a client can't invent earlier Gullu replies to talk it into breaking its rules
+//   * prompt-injection and off-topic questions are refused without calling the AI
+//   * payee/merchant names are cleaned before the AI sees them; answers are checked before they're sent
 //
 // Gullu, the chatbot. Loads the caller's own data with their token (row-level security applies), then lets the AI
 // model answer by calling the tools in packages/core/src/ask.ts. No raw SMS is loaded or sent.
@@ -9,28 +17,17 @@
 // Any other OpenAI-compatible provider can replace it with AI_BASE_URL + AI_API_KEY + AI_MODEL.
 // Without a key it answers 503 "not switched on yet".
 
+import { checkQuestion, prepareHistory, signAnswer, verifyAnswer } from '../../../packages/core/src/guard.ts';
 import { ask, GEMINI_CHAT_MODEL, GEMINI_OPENAI_URL, openAICompatible, type AskData } from '../../../packages/core/src/ask.ts';
 import type { Jar, JarEntry } from '../../../packages/core/src/jars.ts';
 import type { Budget } from '../../../packages/core/src/stats.ts';
 import type { Transaction } from '../../../packages/core/src/types.ts';
-import { CORS, json, userClient } from '../_shared/server.ts';
+import { checkRate, CORS, json, rateLimited, signingKey, userSession } from '../_shared/server.ts';
 
 const TXN_COLUMNS =
   'id, occurred_at, amount, direction, payee, payee_key, merchant, vpa, category, category_source, bank, account, upi_ref, channel, source, note, hidden, sms_id';
 
-interface Incoming {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-function readMessages(body: unknown): Incoming[] {
-  const list = (body as { messages?: unknown })?.messages;
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter((m): m is Incoming => !!m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim() !== '')
-    .slice(-10)
-    .map((m) => ({ role: m.role, content: m.content.slice(0, 1000) }));
-}
+const MAX_BODY_BYTES = 16 * 1024;
 
 function provider() {
   const custom = Deno.env.get('AI_API_KEY');
@@ -47,14 +44,39 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
 
-  const db = await userClient(req);
-  if (!db) return json(401, { error: 'Sign in first' });
+  const session = await userSession(req);
+  if (!session) return json(401, { error: 'Sign in first' });
+  const { db, userId } = session;
 
   const ai = provider();
   if (!ai) return json(503, { error: 'Gullu isn’t switched on yet.' });
 
-  const messages = readMessages(await req.json().catch(() => null));
-  if (!messages.length || messages[messages.length - 1].role !== 'user') return json(400, { error: 'Ask a question' });
+  // Read the body with a size cap (Content-Length can be missing or wrong).
+  const declared = Number(req.headers.get('content-length') ?? 0);
+  if (declared > MAX_BODY_BYTES) return json(413, { error: 'That message is too long.' });
+  const text = await req.text().catch(() => '');
+  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return json(413, { error: 'That message is too long.' });
+  let body: unknown = null;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = null;
+  }
+
+  // Counted before anything else that costs money, including refused questions, so spam is limited too.
+  const rate = await checkRate(db, 'ask');
+  if (!rate.allowed) return rateLimited(rate);
+
+  const key = signingKey();
+  const messages = await prepareHistory((body as { messages?: unknown })?.messages, (content, sig) => verifyAnswer(key, userId, content, sig));
+  if (!messages.length) return json(400, { error: 'Ask a question' });
+
+  // Refuse injection / off-topic questions before loading anything or calling the AI.
+  const check = checkQuestion(messages[messages.length - 1].content);
+  if (!check.ok) {
+    console.warn('gullu refused', { user: userId, reason: check.reason });
+    return json(200, { answer: check.refusal, used: [], sig: await signAnswer(key, userId, check.refusal) });
+  }
 
   const since = new Date();
   since.setMonth(since.getMonth() - 13, 1);
@@ -75,7 +97,9 @@ Deno.serve(async (req) => {
   };
 
   try {
-    return json(200, await ask(messages, data, openAICompatible(ai)));
+    const result = await ask(messages, data, openAICompatible(ai));
+    if (result.refused) console.warn('gullu refused', { user: userId, reason: result.refused });
+    return json(200, { answer: result.answer, used: result.used, sig: await signAnswer(key, userId, result.answer) });
   } catch (err) {
     console.error('ask failed', err);
     return json(502, { error: 'Gullu isn’t answering right now. Try again in a minute.' });

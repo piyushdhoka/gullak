@@ -46,7 +46,9 @@ function useOdds(id: string | undefined, payeeKey: string | null | undefined): O
     let alive = true;
     supabase.functions
       .invoke<{ odds: Odds | null }>('why', { body: { transaction_id: id } })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        // Errors (e.g. rate limited) aren't cached, so the odds can load next time.
+        if (error) return;
         const value = data?.odds?.length ? data.odds : null;
         oddsCache.set(key, value);
         if (alive) setOdds(value);
