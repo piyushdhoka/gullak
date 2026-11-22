@@ -210,7 +210,8 @@ export interface CategorizeInput {
 export type CategorySource = 'user' | 'merchant' | 'heuristic' | 'model' | 'unknown';
 
 export interface CategorizeResult {
-  category: Category;
+  /** A built-in category, or one of the owner's own (from their payee rule). */
+  category: string;
   /** Clean display name, e.g. "Swiggy" or "Rahul Kumar". */
   merchant: string | null;
   source: CategorySource;
@@ -221,7 +222,8 @@ export function categorize(input: CategorizeInput, ownerRule?: string | null): C
   const opaque = isOpaquePayee(input.payee, input.vpa);
   const merchant = known?.name ?? (input.payee && !opaque ? titleCase(input.payee) : input.payee);
 
-  if (isCategory(ownerRule)) return { category: ownerRule, merchant, source: 'user' };
+  const rule = ownerRule?.trim();
+  if (rule) return { category: rule, merchant, source: 'user' };
 
   if (input.direction === 'credit') {
     if (/\b(refund|reversal|reversed)\b/i.test(input.text)) return { category: 'Refund', merchant, source: 'heuristic' };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { categorize, isOpaquePayee } from '../server/src/core/categorize.ts';
+import { categorize, isOpaquePayee } from '../src/categorize.ts';
 
 const base = { direction: 'debit' as const, channel: 'upi' as const, payee: null, vpa: null, text: '' };
 
@@ -20,9 +20,7 @@ describe('categorize', () => {
     expect(categorize({ ...base, payee: 'SWIGGY' }, 'Groceries')).toMatchObject({ category: 'Groceries', source: 'user' });
   });
 
-  it('ignores an invalid owner rule', () => {
-    expect(categorize({ ...base, payee: 'SWIGGY' }, 'Nonsense').category).toBe('Food');
-  });
+it("uses the owner's own custom category (rules are validated when saved)", () => {    expect(categorize({ ...base, payee: 'SWIGGY' }, 'Office lunch')).toMatchObject({ category: 'Office lunch', source: 'user' });  });  it('ignores an empty owner rule', () => {    expect(categorize({ ...base, payee: 'SWIGGY' }, '  ').category).toBe('Food');  });
 
   it('name-like personal VPA is a transfer, with a readable name', () => {
     expect(categorize({ ...base, payee: 'rahul.k', vpa: 'rahul.k@okicici' })).toEqual({

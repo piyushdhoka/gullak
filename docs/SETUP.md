@@ -30,7 +30,7 @@ From the project folder on Windows:
 .\deploy\deploy.ps1
 ```
 
-Builds the web app, uploads app + server, and runs `deploy/remote-setup.sh` on the instance
+Builds the web app, uploads app + server, and runs `infra/remote-setup.sh` on the instance
 (idempotent: installs Node 24, Caddy, swap, the `gullak` systemd service). Data in
 `/var/lib/gullak` is never touched by a deploy. Config lives in `/etc/gullak/env`.
 

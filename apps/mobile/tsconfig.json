@@ -19,10 +19,7 @@
   ],
   "exclude": [
     "node_modules",
-    "server",
-    "tests",
-    "vitest.config.ts",
-    "classifier",
-    "supabase/functions"
+    "test",
+    "dist"
   ]
 }

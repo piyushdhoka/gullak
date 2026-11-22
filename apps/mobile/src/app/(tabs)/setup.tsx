@@ -285,7 +285,7 @@ function TestStep() {
         status: string;
         reason?: string;
         transaction?: { amount: number; direction: 'debit' | 'credit'; merchant: string; category: string };
-      }>('ingest', { body: { text, received_at: d.toISOString() } });
+      }>('ingest', { body: { text, received_at: d.toISOString(), test: true } });
       if (error || !body) throw error ?? new Error('No answer');
       if (body.status === 'saved' && body.transaction) {
         setResult(`Saved ${signedMoney(body.transaction)} · ${body.transaction.merchant}. Check Activity and your notifications.`);

@@ -46,8 +46,9 @@ example
 .env
 .secrets/
 
-server/data/
-server/.env
+legacy/server/data/
+*.db
+legacy/server/.env
 
 
 # local-only env (no secrets today, but keep it off GitHub)

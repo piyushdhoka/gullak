@@ -6,7 +6,7 @@ import {
   processCapture,
   type IngestDeps,
   type NewTransaction,
-} from '../server/src/core/ingest-core.ts';
+} from '../src/ingest-core.ts';
 
 const HDFC = 'Sent Rs.250.00\nFrom HDFC Bank A/C *1234\nTo SWIGGY\nOn 11/10/26\nRef 528461234567\nNot You?';
 const NOW = new Date('2026-11-21T10:00:00.000Z');

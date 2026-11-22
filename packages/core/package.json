@@ -1,0 +1,11 @@
+{
+  "name": "@gullak/core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bank SMS parser, categoriser and capture pipeline. Pure TypeScript: runs in Deno (Supabase Edge Functions), React Native and Node.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  }
+}

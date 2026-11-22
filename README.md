@@ -1,38 +1,29 @@
-# Gullak
+# Gulलक · Gullak
 
-Automatic expense tracking for India. Every bank SMS on your iPhone (GPay, PhonePe, cards, NEFT…) is
-forwarded by an iOS Shortcut to your own server, parsed, categorised, and pushed back to your phone:
-`−₹250.00 · Swiggy` / `Food · HDFC Bank •1234`.
+Every rupee, sorted on its own. Gullak turns the SMS your bank already sends into a categorised,
+totalled expense: no bank login, no typing.
 
-- **App:** Expo (React Native) exported as an installable web app (PWA) with an iOS-style UI; the
-  same code can later become a native App Store app.
-- **Server:** Node 24 + Hono + built-in SQLite on EC2, behind Caddy (automatic HTTPS). Serves the
-  app, the API, and `/ingest` for the Shortcut. Daily backups.
-- **Categorising:** your choices → known merchants → signals → optional small model (readable
-  names only, confidence-gated) → one-tap **Review** for QR codes and IDs.
+- **Android app (APK):** reads bank SMS directly, can import past months.
+- **iPhone app (PWA):** installed from Safari; an iOS Shortcut forwards bank SMS.
+- **Backend:** Supabase (Postgres with row-level security, Edge Functions, Realtime, Auth).
 
-## Layout
-
-| Path | What |
-| --- | --- |
-| `src/app/` | Screens: Summary, Activity, Setup, Settings, Review, payment detail, Not recognised |
-| `src/ui/` | iOS-style components (grouped lists, large-title nav bar, buttons, icons, HIG colours) |
-| `src/lib/` | API client, data layer (+ demo data), dashboard maths, push, formatting |
-| `server/src/core/` | SMS parser, categoriser, capture pipeline (pure TypeScript, unit-tested) |
-| `server/src/` | HTTP API, SQLite, auth, push, static app serving, backups |
-| `deploy/` | `deploy.ps1` (Windows → EC2) and `remote-setup.sh` |
-| `tests/` | Vitest unit + API tests |
-| `docs/` | Design spec and setup guide |
-
-## Commands
-
-```bash
-npm run server       # API on :8787
-npm run web          # app on :8081
-npm test
-npm run typecheck    # app, tests and server
-npm run lint
-.\deploy\deploy.ps1  # build and deploy to EC2
+```
+apps/mobile      Expo app: Android build + iOS PWA (web build)
+packages/core    @gullak/core: SMS parser, categoriser, capture pipeline (shared everywhere)
+supabase         migrations + Edge Functions (ingest, config)
+infra            EC2 + Caddy deploy for the PWA and the /ingest address
+legacy/server    old SQLite server, removed after data migration
+docs             ARCHITECTURE, API (backend contract), ANDROID, FEATURES, SETUP
 ```
 
-Setup and deployment: [docs/SETUP.md](docs/SETUP.md).
+## Develop
+```bash
+npm install          # all workspaces
+npm run web          # PWA dev server (http://localhost:8081)
+npm test             # parser / categoriser / pipeline / stats tests
+npm run typecheck    # app, core and Edge Functions
+npm run lint
+```
+
+Start with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), then [docs/API.md](docs/API.md).
+Feature ideas and roadmap: [docs/FEATURES.md](docs/FEATURES.md). Android SMS plan: [docs/ANDROID.md](docs/ANDROID.md).

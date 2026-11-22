@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { createApp } from '../server/src/app.ts';
-import { openDb } from '../server/src/db.ts';
+import { createApp } from '../src/app.ts';
+import { openDb } from '../src/db.ts';
 
 const SWIGGY = 'Sent Rs.250.00\nFrom HDFC Bank A/C *1234\nTo SWIGGY\nOn 11/10/26\nRef 528461234567';
 const QR = 'Sent Rs.40.00\nFrom HDFC Bank A/C *1234\nTo paytmqr2810050501@paytm\nOn 11/10/26\nRef 528461238888';

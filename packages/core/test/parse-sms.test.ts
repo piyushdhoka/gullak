@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseSms } from '../server/src/core/parse-sms.ts';
+import { parseSms } from '../src/parse-sms.ts';
 
 // Realistic, anonymised bank SMS formats. Names, numbers and refs are made up.
 function txn(text: string) {
@@ -182,5 +182,23 @@ describe('parseSms — unrecognised', () => {
   });
   it('empty text', () => {
     expect(parseSms('   ').kind).toBe('unrecognised');
+  });
+});
+
+describe('available balance', () => {
+  const bal = (text: string) => {
+    const r = parseSms(text);
+    return r.kind === 'transaction' ? r.txn.balance : 'not a transaction';
+  };
+
+  it('reads the balance after the payment', () => {
+    expect(bal('A/c XX1234 debited Rs 300.00 on 11-10-26 to VPA rapido.bike@axl. Avl Bal Rs 12,450.75. UPI Ref 528461234567 -Yes Bank')).toBe(12450.75);
+    expect(bal('Your A/c XX1234 is credited by Rs.65,000.00 on 01-11-26 by NEFT from ACME TECHNOLOGIES PVT LTD. Avl Bal Rs.70,120.00 -HDFC Bank')).toBe(70120);
+    expect(bal('Rs.500 debited from A/c XX4321 on 02-11-26. Available Balance: INR 9,876.50 -Kotak')).toBe(9876.5);
+  });
+
+  it('is empty when the SMS has no balance, and ignores card limits', () => {
+    expect(bal('Sent Rs.250.00 From HDFC Bank A/C *1234 To SWIGGY On 21/11/26 Ref 532175523881')).toBeNull();
+    expect(bal('Rs.799 spent on ICICI Bank Card XX4402 at AMAZON on 12-Nov-26. Avl Limit: INR 1,20,000.00')).toBeNull();
   });
 });

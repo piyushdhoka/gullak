@@ -1,7 +1,7 @@
 # Builds the web app on this PC and deploys it to the EC2 instance (Caddy serves it and forwards /ingest to Supabase).
-# Usage (from the project folder):
-#   .\deploy\deploy.ps1
-#   .\deploy\deploy.ps1 -SkipBuild        # re-deploy the last build
+# Usage (from the repo root):
+#   .\infra\deploy.ps1                    # or: npm run deploy
+#   .\infra\deploy.ps1 -SkipBuild         # re-deploy the last build
 param(
   # Server address and SSH key come from your machine, never from the repo:
   #   $env:GULLAK_HOST = "<ec2 ip>"; $env:GULLAK_KEY = "<path to .pem>"
@@ -23,7 +23,7 @@ Set-Location $root
 
 if (-not $SkipBuild) {
   Write-Host "== building web app"
-  npx expo export -p web --clear | Out-Host
+  npm --workspace @gullak/mobile run build:web | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "web build failed" }
 }
 
@@ -31,9 +31,10 @@ Write-Host "== packing release"
 $stage = Join-Path $env:TEMP "gullak-release"
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force "$stage\server" | Out-Null
-Copy-Item -Recurse dist "$stage\dist"
-Copy-Item -Recurse server\src "$stage\server\src"
-Copy-Item server\package.json, server\package-lock.json "$stage\server\"
+Copy-Item -Recurse apps\mobile\dist "$stage\dist"
+# Legacy SQLite server: only shipped while old data is being moved to Supabase (-Ingest local).
+Copy-Item -Recurse legacy\server\src "$stage\server\src"
+Copy-Item legacy\server\package.json, legacy\server\package-lock.json "$stage\server\"
 $tgz = Join-Path $env:TEMP "gullak-release.tgz"
 tar -czf $tgz -C $stage dist server
 if ($LASTEXITCODE -ne 0) { throw "tar failed" }

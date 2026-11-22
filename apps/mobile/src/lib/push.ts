@@ -57,8 +57,16 @@ export async function enablePush(): Promise<{ ok: true } | { ok: false; message:
       (await reg.pushManager.getSubscription()) ??
       (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) }));
     const json = sub.toJSON();
-    const { error } = await supabase.from('push_subscriptions').upsert(
-      { endpoint: sub.endpoint, p256dh: json.keys?.p256dh ?? '', auth: json.keys?.auth ?? '', user_agent: navigator.userAgent.slice(0, 300) },
+    const { error } = await supabase.from('devices').upsert(
+      {
+        platform: 'web',
+        name: isIOS() ? 'iPhone' : 'Browser',
+        endpoint: sub.endpoint,
+        p256dh: json.keys?.p256dh ?? '',
+        auth: json.keys?.auth ?? '',
+        user_agent: navigator.userAgent.slice(0, 300),
+        last_seen_at: new Date().toISOString(),
+      },
       { onConflict: 'endpoint' },
     );
     if (error) throw error;

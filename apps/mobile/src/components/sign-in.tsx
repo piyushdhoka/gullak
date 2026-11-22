@@ -1,9 +1,20 @@
+// Email + password accounts, with 6-digit email codes for confirming sign-up and resetting a password.
+// Codes work inside the installed apps; email links (also sent) open the browser instead.
+
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { sendPasswordReset, setNewPassword, signIn, signUp } from '@/lib/api';
 import { Wordmark } from '@/components/wordmark';
+import {
+  resendSignupCode,
+  resetPasswordWithCode,
+  sendPasswordReset,
+  setNewPassword,
+  signIn,
+  signUp,
+  verifySignupCode,
+} from '@/lib/api';
 import { TAGLINE_EN, TAGLINE_HI } from '@/lib/app';
 import { Button, Field } from '@/ui/controls';
 import { BackChevron } from '@/ui/icons';
@@ -11,14 +22,24 @@ import { Section } from '@/ui/list';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
 
-type Mode = 'signin' | 'signup' | 'forgot' | 'recovery';
+/**
+ * signin / signup: the usual forms.
+ * verify: enter the code from the sign-up email.
+ * forgot: ask for a reset email. resetCode: code + new password.
+ * recovery: opened from the reset link instead; just the new password.
+ */
+type Mode = 'signin' | 'signup' | 'verify' | 'forgot' | 'resetCode' | 'recovery';
 
 const COPY: Record<Mode, { hi: string; en: string; button: string }> = {
   signin: { hi: TAGLINE_HI, en: TAGLINE_EN, button: 'Sign In' },
-  signup: { hi: 'अपना गुल्लक बनाइए।', en: 'Create your account. Free, and your payments stay yours.', button: 'Create Account' },
-  forgot: { hi: 'कोई बात नहीं।', en: 'We’ll email you a link to choose a new password.', button: 'Send Reset Link' },
+  signup: { hi: 'अपना गुल्लक बनाइए।', en: 'Create your account with your email and a password.', button: 'Create Account' },
+  verify: { hi: 'बस एक कदम।', en: 'Enter the 6-digit code we emailed you.', button: 'Confirm Email' },
+  forgot: { hi: 'कोई बात नहीं।', en: 'We’ll email you a code to set a new password.', button: 'Send Code' },
+  resetCode: { hi: 'नया पासवर्ड।', en: 'Enter the code from the email and your new password.', button: 'Save Password' },
   recovery: { hi: 'नया पासवर्ड।', en: 'Choose a new password for your account.', button: 'Save Password' },
 };
+
+const MIN_PASSWORD = 8;
 
 export function SignIn({ onBack, recovering = false }: { onBack?: () => void; recovering?: boolean }) {
   const c = useColors();
@@ -27,33 +48,55 @@ export function SignIn({ onBack, recovering = false }: { onBack?: () => void; re
   const mode: Mode = recovering ? 'recovery' : chosen;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
-  const go = (next: Mode) => {
+  const go = (next: Mode, note?: { text: string; ok: boolean }) => {
     setMode(next);
-    setMessage(null);
-    setPassword('');
+    setMessage(note ?? null);
+    setCode('');
+    if (next !== 'verify') setPassword('');
   };
+
+  const addr = email.trim();
 
   const submit = async () => {
     setBusy(true);
     setMessage(null);
     try {
-      if (mode === 'signin') await signIn(email.trim(), password);
-      else if (mode === 'signup') {
-        const { needsConfirmation } = await signUp(email.trim(), password);
-        if (needsConfirmation) {
-          setMode('signin');
-          setPassword('');
-          setMessage({ ok: true, text: `Almost there. Open the link we sent to ${email.trim()}, then sign in here.` });
+      switch (mode) {
+        case 'signin':
+          try {
+            await signIn(addr, password);
+          } catch (e) {
+            // Signed up but never confirmed: send a fresh code and ask for it.
+            if (/confirm your email/i.test((e as Error).message)) {
+              await resendSignupCode(addr).catch(() => {});
+              go('verify', { ok: true, text: `We sent a new code to ${addr}.` });
+              return;
+            }
+            throw e;
+          }
+          break;
+        case 'signup': {
+          const { needsConfirmation } = await signUp(addr, password);
+          if (needsConfirmation) go('verify', { ok: true, text: `Code sent to ${addr}. Check spam if it isn’t there in a minute.` });
+          break;
         }
-      } else if (mode === 'forgot') {
-        await sendPasswordReset(email.trim());
-        setMode('signin');
-        setMessage({ ok: true, text: `If ${email.trim()} has an account, a reset link is on its way.` });
-      } else {
-        await setNewPassword(password);
+        case 'verify':
+          await verifySignupCode(addr, code);
+          break;
+        case 'forgot':
+          await sendPasswordReset(addr);
+          go('resetCode', { ok: true, text: `If ${addr} has an account, a code is on its way.` });
+          break;
+        case 'resetCode':
+          await resetPasswordWithCode(addr, code, password);
+          break;
+        case 'recovery':
+          await setNewPassword(password);
+          break;
       }
     } catch (e) {
       setMessage({ ok: false, text: (e as Error).message });
@@ -62,10 +105,25 @@ export function SignIn({ onBack, recovering = false }: { onBack?: () => void; re
     }
   };
 
-  const needsEmail = mode !== 'recovery';
-  const needsPassword = mode !== 'forgot';
-  const newPassword = mode === 'signup' || mode === 'recovery';
-  const valid = (!needsEmail || email.includes('@')) && (!needsPassword || password.length >= (newPassword ? 8 : 1));
+  const resend = async () => {
+    setMessage(null);
+    try {
+      if (mode === 'verify') await resendSignupCode(addr);
+      else await sendPasswordReset(addr);
+      setMessage({ ok: true, text: `New code sent to ${addr}.` });
+    } catch (e) {
+      setMessage({ ok: false, text: (e as Error).message });
+    }
+  };
+
+  const needsEmail = mode === 'signin' || mode === 'signup' || mode === 'forgot';
+  const needsCode = mode === 'verify' || mode === 'resetCode';
+  const needsPassword = mode === 'signin' || mode === 'signup' || mode === 'resetCode' || mode === 'recovery';
+  const newPassword = mode === 'signup' || mode === 'resetCode' || mode === 'recovery';
+  const valid =
+    (!needsEmail || /.+@.+\..+/.test(addr)) &&
+    (!needsCode || code.replace(/\D/g, '').length >= 6) &&
+    (!needsPassword || password.length >= (newPassword ? MIN_PASSWORD : 1));
   const copy = COPY[mode];
 
   return (
@@ -83,7 +141,7 @@ export function SignIn({ onBack, recovering = false }: { onBack?: () => void; re
           {copy.hi}
         </Text>
         <Text variant="body" color="secondaryLabel" align="center" style={styles.tagline}>
-          {copy.en}
+          {needsCode ? `${copy.en} (${addr})` : copy.en}
         </Text>
 
         <Section inset={false}>
@@ -100,12 +158,24 @@ export function SignIn({ onBack, recovering = false }: { onBack?: () => void; re
               onSubmitEditing={mode === 'forgot' ? submit : undefined}
             />
           ) : null}
+          {needsCode ? (
+            <Field
+              label="Code"
+              value={code}
+              onChangeText={(v) => setCode(v.replace(/[^\d ]/g, '').slice(0, 8))}
+              placeholder="6-digit code"
+              keyboardType="number-pad"
+              autoComplete="one-time-code"
+              textContentType="oneTimeCode"
+              onSubmitEditing={mode === 'verify' ? submit : undefined}
+            />
+          ) : null}
           {needsPassword ? (
             <Field
-              label={mode === 'recovery' ? 'New password' : 'Password'}
+              label={newPassword && mode !== 'signup' ? 'New password' : 'Password'}
               value={password}
               onChangeText={setPassword}
-              placeholder={newPassword ? 'At least 8 characters' : 'Required'}
+              placeholder={newPassword ? `At least ${MIN_PASSWORD} characters` : 'Required'}
               secureTextEntry
               autoComplete={newPassword ? 'new-password' : 'current-password'}
               textContentType={newPassword ? 'newPassword' : 'password'}
@@ -126,6 +196,11 @@ export function SignIn({ onBack, recovering = false }: { onBack?: () => void; re
                 <>
                   <Button title="New here? Create an account" kind="plain" size="small" onPress={() => go('signup')} />
                   <Button title="Forgot password?" kind="plain" size="small" onPress={() => go('forgot')} />
+                </>
+              ) : needsCode ? (
+                <>
+                  <Button title="Send a new code" kind="plain" size="small" onPress={resend} />
+                  <Button title="Use a different email" kind="plain" size="small" onPress={() => go(mode === 'verify' ? 'signup' : 'forgot')} />
                 </>
               ) : (
                 <Button title="I have an account. Sign in" kind="plain" size="small" onPress={() => go('signin')} />

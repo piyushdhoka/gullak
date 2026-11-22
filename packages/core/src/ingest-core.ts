@@ -1,7 +1,7 @@
 // The capture pipeline, independent of the database and HTTP layer so it can be unit-tested.
-// app.ts wires these deps to SQLite and Web Push.
+// The Supabase ingest function wires these deps to Postgres and push notifications.
 
-import { categorize, isCategory, isOpaquePayee, type Category, type CategorySource } from './categorize.ts';
+import { categorize, isCategory, isOpaquePayee, type CategorySource } from './categorize.ts';
 import { parseSms, type Channel, type Direction } from './parse-sms.ts';
 
 export type SmsStatus = 'parsed' | 'duplicate' | 'ignored' | 'unrecognised';
@@ -16,12 +16,14 @@ export interface NewTransaction {
   payee_key: string | null;
   merchant: string | null;
   vpa: string | null;
-  category: Category;
+  category: string;
   category_source: CategorySource;
   bank: string | null;
   account: string | null;
   upi_ref: string | null;
   channel: Channel;
+  /** Account balance after this payment, if the SMS said. */
+  balance: number | null;
   dedupe_key: string;
 }
 
@@ -147,7 +149,7 @@ export async function processCapture(deps: IngestDeps, input: CaptureInput): Pro
   const rule = t.payeeKey ? await deps.getPayeeRule(input.userId, t.payeeKey) : null;
   const guess = categorize({ direction: t.direction, channel: t.channel, payee: t.payee, vpa: t.vpa, text }, rule);
   const { merchant } = guess;
-  let category: Category = guess.category;
+  let category: string = guess.category;
   let categorySource: CategorySource = guess.source;
   if (guess.source === 'unknown' && deps.classify && !isOpaquePayee(t.payee, t.vpa)) {
     try {
@@ -181,6 +183,7 @@ export async function processCapture(deps: IngestDeps, input: CaptureInput): Pro
     account: t.account,
     upi_ref: t.upiRef,
     channel: t.channel,
+    balance: t.balance,
     dedupe_key: dedupeKey,
   };
 

@@ -102,14 +102,23 @@ export function friendly(error: unknown): string {
   const raw = (error as { message?: string })?.message ?? String(error);
   if (/failed to fetch|network|load failed/i.test(raw)) return 'Can’t reach Gullak. Check your connection.';
   if (/invalid login credentials/i.test(raw)) return 'Wrong email or password.';
-  if (/email not confirmed/i.test(raw)) return 'Confirm your email first: open the link we sent you.';
+  if (/email not confirmed/i.test(raw)) return 'Confirm your email first: enter the code we sent you.';
+  if (/token has expired|otp.*(expired|invalid)|invalid.*(otp|token)/i.test(raw)) return 'That code is wrong or has expired. Ask for a new one.';
+  if (/password should be|weak password/i.test(raw)) return 'Pick a stronger password: at least 8 characters.';
   if (/already registered|already been registered/i.test(raw)) return 'There’s already an account with this email. Sign in instead.';
   if (/rate limit|too many/i.test(raw)) return 'Too many tries. Wait a minute and try again.';
   return raw;
 }
 
+/**
+ * Where links in Gullak's emails point. Always the public site, never the address the app happens
+ * to run on (so a sign-up from a dev build on localhost still gets a working link).
+ * Supabase must list it under Auth › URL Configuration › Redirect URLs.
+ */
+export const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL ?? 'https://gullak.sparkstudio.co.in').replace(/\/$/, '');
+
 function siteUrl() {
-  return Platform.OS === 'web' && typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
+  return `${SITE_URL}/`;
 }
 
 export async function signIn(email: string, password: string) {
@@ -131,6 +140,36 @@ export async function signUp(email: string, password: string): Promise<{ needsCo
 export async function sendPasswordReset(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: siteUrl() });
   if (error) throw new Error(friendly(error));
+}
+
+/**
+ * The 6-digit code from the sign-up email. Typing the code works everywhere (iPhone Home Screen app,
+ * Android app, a laptop); the link in the same email opens in the browser instead of the installed app.
+ */
+export async function verifySignupCode(email: string, code: string) {
+  const { error } = await supabase.auth.verifyOtp({ email, token: code.replace(/\D/g, ''), type: 'signup' });
+  if (error) throw new Error(friendly(error));
+}
+
+export async function resendSignupCode(email: string) {
+  const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: siteUrl() } });
+  if (error) throw new Error(friendly(error));
+}
+
+/** Password reset by code: proves the email, then sets the new password in the same step. */
+export async function resetPasswordWithCode(email: string, code: string, password: string) {
+  const { error } = await supabase.auth.verifyOtp({ email, token: code.replace(/\D/g, ''), type: 'recovery' });
+  if (error) throw new Error(friendly(error));
+  const { error: e2 } = await supabase.auth.updateUser({ password });
+  if (e2) throw new Error(friendly(e2));
+  set({ recovering: false });
+}
+
+/** Permanently deletes the account and everything in it. */
+export async function deleteAccount() {
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw new Error(friendly(error));
+  await signOut();
 }
 
 export async function setNewPassword(password: string) {

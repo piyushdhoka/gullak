@@ -17,6 +17,8 @@ export interface ParsedTxn {
   account: string | null;
   upiRef: string | null;
   channel: Channel;
+  /** Available balance the bank reports after this payment, when the SMS includes it. */
+  balance: number | null;
 }
 
 export type ParseResult =
@@ -167,6 +169,17 @@ function findPayee(text: string, direction: Direction): string | null {
   return best?.name ?? null;
 }
 
+// "Avl Bal Rs 12,450.75", "Available Balance: INR 5,000", "Bal: Rs.70,120.00". Card "Avl Limit" is not a balance.
+const BALANCE =
+  /\b(?:avl\.?\s*bal(?:ance)?|available\s+bal(?:ance)?|a\/c\s+bal(?:ance)?|bal(?:ance)?)\b[\s.:-]*(?:is\s*)?(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d+)?)/i;
+
+function findBalance(text: string): number | null {
+  const m = BALANCE.exec(text);
+  if (!m) return null;
+  const n = toNumber(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
 function findAccount(text: string): string | null {
   const m = ACCOUNT.exec(text);
   return m ? m[1].slice(-4) : null;
@@ -231,6 +244,7 @@ export function parseSms(input: string): ParseResult {
       account,
       upiRef: findUpiRef(text),
       channel: findChannel(text, vpa),
+      balance: findBalance(text),
     },
   };
 }
