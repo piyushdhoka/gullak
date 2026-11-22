@@ -103,6 +103,19 @@ describe('ask loop', () => {
     expect(seen.join(' ')).not.toMatch(/sms_id|Sent Rs|A\/C/);
   });
 
+  it('sends Gemini’s thought signature back with the tool call', async () => {
+    const sig = { google: { thought_signature: 'abc' } };
+    const seen: unknown[] = [];
+    const chat: ChatFn = async (messages) => {
+      seen.push(...messages);
+      return messages.some((m) => m.role === 'tool')
+        ? { role: 'assistant', content: 'ok' }
+        : { role: 'assistant', content: null, tool_calls: [{ id: 'c', type: 'function', function: { name: 'trend', arguments: '{}' }, extra_content: sig }] };
+    };
+    await ask([{ role: 'user', content: 'trend?' }], data, chat);
+    expect(seen).toContainEqual(expect.objectContaining({ role: 'assistant', tool_calls: [expect.objectContaining({ extra_content: sig })] }));
+  });
+
   it('stops after a few tool rounds', async () => {
     const chat: ChatFn = vi.fn(async () => ({
       role: 'assistant' as const,

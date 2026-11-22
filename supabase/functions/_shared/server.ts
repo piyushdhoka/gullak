@@ -22,6 +22,31 @@ export const admin: SupabaseClient = createClient(Deno.env.get('SUPABASE_URL')!,
   auth: { persistSession: false },
 });
 
+function publicKey(): string {
+  try {
+    const keys = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') ?? '{}');
+    if (keys?.default) return keys.default;
+  } catch {
+    // fall back to the legacy key
+  }
+  return Deno.env.get('SUPABASE_ANON_KEY')!;
+}
+
+/**
+ * A client that acts as the caller (their token + the public key), so row-level security limits it to
+ * their own rows. Returns null when the token is missing or invalid.
+ */
+export async function userClient(req: Request): Promise<SupabaseClient | null> {
+  const auth = req.headers.get('authorization') ?? '';
+  if (!/^Bearer\s+\S+/i.test(auth)) return null;
+  const db = createClient(Deno.env.get('SUPABASE_URL')!, publicKey(), {
+    global: { headers: { Authorization: auth } },
+    auth: { persistSession: false },
+  });
+  const { data } = await db.auth.getUser(auth.replace(/^Bearer\s+/i, ''));
+  return data.user ? db : null;
+}
+
 export const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-capture-key',

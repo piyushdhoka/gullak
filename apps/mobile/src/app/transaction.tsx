@@ -30,25 +30,68 @@ const SOURCE_LABEL: Record<string, string | undefined> = {
   unknown: 'Tap Change to pick one; it’s remembered for this payee',
 };
 
-/** "Why?": the reason for the category, and three one-tap fixes. */
-function Why({ why, onPick }: { why: Explanation; onPick: (category: string) => void }) {
+type Odds = { category: string; p: number }[];
+
+// One answer per payee per session: the same payee gets the same odds.
+const oddsCache = new Map<string, Odds | null>();
+
+/** The AI's odds for each category of this payment (null when it can't judge, e.g. a QR code). */
+function useOdds(id: string | undefined, payeeKey: string | null | undefined): Odds | null {
+  const key = payeeKey ?? id ?? '';
+  const [odds, setOdds] = useState<Odds | null>(() => oddsCache.get(key) ?? null);
+  useEffect(() => {
+    if (isDemo || !id || oddsCache.has(key)) return;
+    let alive = true;
+    supabase.functions
+      .invoke<{ odds: Odds | null }>('why', { body: { transaction_id: id } })
+      .then(({ data }) => {
+        const value = data?.odds?.length ? data.odds : null;
+        oddsCache.set(key, value);
+        if (alive) setOdds(value);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [id, key]);
+  return odds;
+}
+
+const pct = (p: number) => (p >= 0.995 ? '99%' : p < 0.01 ? '<1%' : `${Math.round(p * 100)}%`);
+
+/** "Why?": the reason for the category, the AI's odds when there are any, and three one-tap fixes. */
+function Why({ why, odds, current, onPick }: { why: Explanation; odds: Odds | null; current: string; onPick: (category: string) => void }) {
   const c = useColors();
+  const chips: { category: string; p?: number }[] = odds
+    ? odds.filter((o) => o.category !== current).slice(0, 3)
+    : why.alternatives.map((category) => ({ category }));
+  const mine = odds?.find((o) => o.category === current);
   return (
     <Section header="Why this category?">
       <View style={styles.why}>
         <Text variant="subheadline">{why.reason}</Text>
+        {mine ? (
+          <Text variant="footnote" color="secondaryLabel">
+            Gullak’s AI rates {current} at {pct(mine.p)}. Other options:
+          </Text>
+        ) : null}
         <View style={styles.whyChips}>
-          {why.alternatives.map((cat) => (
+          {chips.map(({ category, p }) => (
             <Pressable
-              key={cat}
-              onPress={() => onPick(cat)}
+              key={category}
+              onPress={() => onPick(category)}
               accessibilityRole="button"
-              accessibilityLabel={`Change to ${cat}`}
+              accessibilityLabel={`Change to ${category}`}
               style={({ pressed }) => [styles.whyChip, { backgroundColor: c.fillTertiary, opacity: pressed ? 0.6 : 1 }]}>
-              <CategoryTile category={cat} size={22} />
+              <CategoryTile category={category} size={22} />
               <Text variant="footnote" weight="600">
-                {cat}
+                {category}
               </Text>
+              {p != null ? (
+                <Text variant="footnote" color="secondaryLabel" tabular>
+                  {pct(p)}
+                </Text>
+              ) : null}
             </Pressable>
           ))}
         </View>
@@ -65,6 +108,7 @@ export default function TransactionScreen() {
   const [picking, setPicking] = useState(false);
   const [applyAll, setApplyAll] = useState(true);
   const [sms, setSms] = useState<string | null>(null);
+  const odds = useOdds(t?.id, t?.payee_key);
 
   useEffect(() => {
     if (isDemo || !t?.sms_id) return;
@@ -148,6 +192,8 @@ export default function TransactionScreen() {
           { direction: t.direction, channel: t.channel === 'cash' ? 'other' : t.channel, payee: t.payee, vpa: t.vpa, text: sms ?? '' },
           { category: t.category, source: t.category_source },
         )}
+        odds={odds}
+        current={t.category}
         onPick={(cat) => setCategory(t.id, cat, applyAll)}
       />
 

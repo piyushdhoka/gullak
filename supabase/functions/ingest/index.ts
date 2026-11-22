@@ -10,8 +10,10 @@
 //
 // Deployed with JWT verification off: authentication is the capture key or the user's own JWT.
 // Parsing and categorising live in packages/core (shared with the Android app and the tests).
-// Categories: the owner's saved choice, then the hand-built rules in packages/core; unknown → Review.
+// Categories: the owner's saved choice, then the hand-built rules in packages/core, then (for readable
+// names only, when GEMINI_API_KEY is set) Gemini Decision 1 at ≥60% probability; otherwise → Review.
 
+import { decisionClassifier } from '../../../packages/core/src/decision.ts';
 import { processCapture, sha256Hex, type CaptureResult, type IngestDeps } from '../../../packages/core/src/ingest-core.ts';
 import { admin, CORS, json, notifyUser } from '../_shared/server.ts';
 
@@ -86,8 +88,12 @@ async function readBody(req: Request): Promise<{ messages: Message[]; batch: boo
   }
 }
 
+const geminiKey = Deno.env.get('GEMINI_API_KEY');
+const classify = geminiKey ? decisionClassifier({ apiKey: geminiKey }) : undefined;
+
 function makeDeps(origin: Origin, quiet: boolean): IngestDeps {
   return {
+    classify,
     async insertSms(row) {
       const { data, error } = await admin.from('sms_inbox').insert({ ...row, origin }).select('id').single();
       if (error) throw error;

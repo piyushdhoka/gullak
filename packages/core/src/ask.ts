@@ -237,7 +237,8 @@ export function systemPrompt(now: Date) {
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string | null;
-  tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
+  /** `extra_content` carries provider data (Gemini's thought signature) that must be sent back unchanged. */
+  tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string }; extra_content?: unknown }[];
   tool_call_id?: string;
 }
 
@@ -280,7 +281,11 @@ export async function ask(history: { role: 'user' | 'assistant'; content: string
   return { answer: 'Sorry, I couldn’t work that out.', used };
 }
 
-/** A ChatFn for any OpenAI-compatible endpoint (Hugging Face router, Groq, OpenRouter, Together, …). */
+/** Gemini through Google's OpenAI-compatible endpoint. */
+export const GEMINI_OPENAI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+export const GEMINI_CHAT_MODEL = 'gemini-3.5-flash-lite';
+
+/** A ChatFn for any OpenAI-compatible endpoint (Gemini, Hugging Face router, Groq, OpenRouter, …). */
 export function openAICompatible(opts: { baseUrl: string; apiKey: string; model: string; timeoutMs?: number; fetchFn?: typeof fetch }): ChatFn {
   const doFetch = opts.fetchFn ?? fetch;
   return async (messages, tools) => {
