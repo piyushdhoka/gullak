@@ -5,3 +5,4 @@
 export * from './parse-sms.ts';
 export * from './categorize.ts';
 export * from './ingest-core.ts';
+export * from './classify.ts';

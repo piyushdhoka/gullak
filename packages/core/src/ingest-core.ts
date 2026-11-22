@@ -1,7 +1,8 @@
 // The capture pipeline, independent of the database and HTTP layer so it can be unit-tested.
 // The Supabase ingest function wires these deps to Postgres and push notifications.
 
-import { categorize, isCategory, isOpaquePayee, type CategorySource } from './categorize.ts';
+import { categorize, isCategory, type CategorySource } from './categorize.ts';
+import type { ClassifyInput, ClassifyResult } from './classify.ts';
 import { parseSms, type Channel, type Direction } from './parse-sms.ts';
 
 export type SmsStatus = 'parsed' | 'duplicate' | 'ignored' | 'unrecognised';
@@ -22,8 +23,6 @@ export interface NewTransaction {
   account: string | null;
   upi_ref: string | null;
   channel: Channel;
-  /** Account balance after this payment, if the SMS said. */
-  balance: number | null;
   dedupe_key: string;
 }
 
@@ -34,18 +33,7 @@ export interface PushPayload {
   tag: string;
 }
 
-export interface ClassifyInput {
-  payee: string | null;
-  vpa: string | null;
-  direction: Direction;
-  text: string;
-}
-
-export interface ClassifyResult {
-  category: string;
-  /** 0–1, the model's probability for this category among the allowed options. */
-  confidence: number;
-}
+export type { ClassifyInput, ClassifyResult } from './classify.ts';
 
 /** Model answers below this probability are not used; the payee goes to Review instead. */
 export const MODEL_MIN_CONFIDENCE = 0.6;
@@ -55,9 +43,8 @@ export interface IngestDeps {
   updateSms(id: string, patch: { status: SmsStatus; reason: string | null }): Promise<void>;
   getPayeeRule(userId: string, payeeKey: string): Promise<string | null>;
   /**
-   * Optional model classifier (e.g. a small LLM scoring the category options).
-   * Only asked for readable payee names the rules can't place — never for QR codes / IDs.
-   * May return null or throw; capture never waits on it for long.
+   * The category model (classify.ts). Asked for every payment the owner hasn't categorised before.
+   * May return null or throw: the payment is still saved and goes to Review.
    */
   classify?(input: ClassifyInput): Promise<ClassifyResult | null>;
   /** Returns the new row id, or null when dedupe_key already exists for this user. */
@@ -151,7 +138,7 @@ export async function processCapture(deps: IngestDeps, input: CaptureInput): Pro
   const { merchant } = guess;
   let category: string = guess.category;
   let categorySource: CategorySource = guess.source;
-  if (guess.source === 'unknown' && deps.classify && !isOpaquePayee(t.payee, t.vpa)) {
+  if (guess.source === 'unknown' && deps.classify) {
     try {
       const answer = await deps.classify({ payee: t.payee, vpa: t.vpa, direction: t.direction, text });
       if (answer && isCategory(answer.category) && answer.confidence >= (input.minConfidence ?? MODEL_MIN_CONFIDENCE)) {
@@ -183,7 +170,6 @@ export async function processCapture(deps: IngestDeps, input: CaptureInput): Pro
     account: t.account,
     upi_ref: t.upiRef,
     channel: t.channel,
-    balance: t.balance,
     dedupe_key: dedupeKey,
   };
 

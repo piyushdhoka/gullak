@@ -64,6 +64,9 @@ function Gate() {
       <Stack.Screen name="transaction" />
       <Stack.Screen name="inbox" />
       <Stack.Screen name="review" />
+      <Stack.Screen name="add" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="budgets" />
+      <Stack.Screen name="subscriptions" />
     </Stack>
   );
 }

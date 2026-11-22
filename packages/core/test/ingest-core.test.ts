@@ -41,21 +41,29 @@ function fakeDeps(opts: { rule?: string; pushFails?: boolean } = {}) {
 }
 
 describe('processCapture', () => {
-  it('saves a parsed SMS, categorises it and pushes', async () => {
+  it('saves a parsed SMS, asks the model and pushes', async () => {
     const { deps, sms, txns, pushes } = fakeDeps();
+    deps.classify = vi.fn(async () => ({ category: 'Food', confidence: 0.91 }));
     const r = await processCapture(deps, { userId: 'u1', text: HDFC, receivedAt: '2026-11-21T09:59:00Z', now: NOW });
     expect(r.status).toBe('saved');
-    const t = [...txns.values()][0];
-    expect(t).toMatchObject({
+    expect([...txns.values()][0]).toMatchObject({
       amount: 250,
       direction: 'debit',
       category: 'Food',
+      category_source: 'model',
       merchant: 'Swiggy',
       dedupe_key: 'upi:528461234567:debit',
       occurred_at: '2026-11-21T09:59:00.000Z',
     });
     expect(sms['sms-1'].status).toBe('parsed');
     expect(pushes).toHaveLength(1);
+  });
+
+  it('without a model, everything goes to review', async () => {
+    const { deps, txns, pushes } = fakeDeps();
+    await processCapture(deps, { userId: 'u1', text: HDFC, now: NOW });
+    expect([...txns.values()][0]).toMatchObject({ category: 'Other', category_source: 'unknown' });
+    expect(pushes[0]).toMatchObject({ url: '/review' });
   });
 
   it('marks the second copy of the same payment as duplicate', async () => {
@@ -87,23 +95,20 @@ describe('processCapture', () => {
 
   const QR = 'Sent Rs.40.00\nFrom HDFC Bank A/C *1234\nTo paytmqr2810050501@paytm\nOn 11/10/26\nRef 528461238888';
 
-  it('asks the model only for readable unknown names, and uses a confident answer', async () => {
-    const { deps, txns } = fakeDeps();
-    deps.classify = vi.fn(async () => ({ category: 'Health', confidence: 0.82 }));
+  it("uses the owner's rule without asking the model", async () => {
+    const { deps, txns } = fakeDeps({ rule: 'Health' });
+    deps.classify = vi.fn(async () => ({ category: 'Food', confidence: 0.99 }));
     await processCapture(deps, { userId: 'u1', text: UNKNOWN, now: NOW });
-    expect([...txns.values()][0]).toMatchObject({ category: 'Health', category_source: 'model' });
-
-    await processCapture(deps, { userId: 'u1', text: HDFC, now: NOW });
-    expect(deps.classify).toHaveBeenCalledTimes(1); // Swiggy is known, model not asked
+    expect(deps.classify).not.toHaveBeenCalled();
+    expect([...txns.values()][0]).toMatchObject({ category: 'Health', category_source: 'user' });
   });
 
-  it('never asks the model about QR codes / IDs; they go to review', async () => {
-    const { deps, txns, pushes } = fakeDeps();
-    deps.classify = vi.fn(async () => ({ category: 'Food', confidence: 0.99 }));
+  it('asks the model about QR payments too; a confident answer is used', async () => {
+    const { deps, txns } = fakeDeps();
+    deps.classify = vi.fn(async () => ({ category: 'Food', confidence: 0.8 }));
     await processCapture(deps, { userId: 'u1', text: QR, now: NOW });
-    expect(deps.classify).not.toHaveBeenCalled();
-    expect([...txns.values()][0]).toMatchObject({ category: 'Other', category_source: 'unknown' });
-    expect(pushes[0]).toMatchObject({ url: '/review' });
+    expect(deps.classify).toHaveBeenCalledTimes(1);
+    expect([...txns.values()][0]).toMatchObject({ category: 'Food', category_source: 'model' });
   });
 
   it('ignores a low-confidence answer, and the threshold is configurable', async () => {
@@ -165,7 +170,7 @@ describe('formatPush', () => {
         direction: 'debit',
         merchant: 'Swiggy',
         category: 'Food',
-        category_source: 'merchant',
+        category_source: 'model',
         bank: 'HDFC Bank',
         account: '1234',
       } as NewTransaction,

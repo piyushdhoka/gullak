@@ -11,11 +11,13 @@ import {
   isDemo,
   onAuthChange,
   restoreSession,
+  deleteAccount as apiDeleteAccount,
   signOut as apiSignOut,
   supabase,
   type Session,
 } from './api';
-import { demoInbox, demoTransactions } from './demo';
+import { demoBudgets, demoInbox, demoTransactions } from './demo';
+import type { Budget } from './stats';
 import type { ReviewItem, SmsMessage, Transaction } from './types';
 
 // Realtime does the work; this is only a safety net for a dropped connection.
@@ -43,7 +45,23 @@ interface DataContextValue {
   resolveReview: (key: string, category: string) => Promise<void>;
   updateTransaction: (id: string, patch: Partial<Pick<Transaction, 'note' | 'hidden'>>) => Promise<void>;
   dismissSms: (id: string) => Promise<void>;
+  /** Monthly limits per category. */
+  budgets: Budget[];
+  setBudget: (category: string, monthlyLimit: number | null) => Promise<void>;
+  /** Cash or any payment without an SMS. Resolves once saved (throws a readable error otherwise). */
+  addManual: (entry: ManualEntry) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
+}
+
+export interface ManualEntry {
+  amount: number;
+  category: string;
+  direction: 'debit' | 'credit';
+  payee?: string;
+  note?: string;
+  occurredAt?: Date;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
@@ -65,13 +83,14 @@ function reviewQueue(txns: Transaction[]): ReviewItem[] {
 interface Fetched {
   transactions?: Transaction[];
   inbox?: SmsMessage[];
+  budgets?: Budget[];
   error: string | null;
 }
 
 async function fetchAll(): Promise<Fetched> {
   const since = new Date();
   since.setMonth(since.getMonth() - 13, 1);
-  const [tx, inbox] = await Promise.all([
+  const [tx, inbox, budgets] = await Promise.all([
     supabase
       .from('transactions')
       .select(TXN_COLUMNS)
@@ -84,11 +103,13 @@ async function fetchAll(): Promise<Fetched> {
       .eq('status', 'unrecognised')
       .order('received_at', { ascending: false })
       .limit(100),
+    supabase.from('budgets').select('category, monthly_limit').order('category'),
   ]);
   return {
     // numeric columns can arrive as strings; the app works in numbers.
     transactions: tx.data ? (tx.data as Transaction[]).map((t) => ({ ...t, amount: Number(t.amount) })) : undefined,
     inbox: inbox.data ? (inbox.data as SmsMessage[]) : undefined,
+    budgets: budgets.data ? (budgets.data as Budget[]).map((b) => ({ ...b, monthly_limit: Number(b.monthly_limit) })) : undefined,
     error: tx.error ? friendly(tx.error) : null,
   };
 }
@@ -100,6 +121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [recovering, setRecovering] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>(() => (isDemo ? demoTransactions() : []));
   const [inbox, setInbox] = useState<SmsMessage[]>(() => (isDemo ? demoInbox : []));
+  const [budgets, setBudgets] = useState<Budget[]>(() => (isDemo ? demoBudgets : []));
   const [loading, setLoading] = useState(!isDemo);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +147,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         setTransactions([]);
         setInbox([]);
+        setBudgets([]);
       }
     });
     return () => {
@@ -137,6 +160,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setError(r.error);
     if (r.transactions) setTransactions(r.transactions);
     if (r.inbox) setInbox(r.inbox);
+    if (r.budgets) setBudgets(r.budgets);
   }, []);
 
   const load = useCallback(async () => {
@@ -166,6 +190,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const channel = supabase
       .channel(`txns:${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, loadSoon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `user_id=eq.${userId}` }, loadSoon)
       .subscribe();
     const tick = setInterval(() => {
       if (AppState.currentState === 'active') load();
@@ -253,6 +278,71 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [write],
   );
 
+  const setBudget = useCallback(
+    async (category: string, monthlyLimit: number | null) => {
+      setBudgets((list) => {
+        const rest = list.filter((b) => b.category !== category);
+        return monthlyLimit ? [...rest, { category, monthly_limit: monthlyLimit }].sort((a, b) => a.category.localeCompare(b.category)) : rest;
+      });
+      await write(() =>
+        monthlyLimit
+          ? supabase.from('budgets').upsert({ category, monthly_limit: monthlyLimit, updated_at: new Date().toISOString() }, { onConflict: 'user_id,category' })
+          : supabase.from('budgets').delete().eq('category', category),
+      );
+    },
+    [write],
+  );
+
+  const addManual = useCallback(
+    async (e: ManualEntry) => {
+      const occurred = (e.occurredAt ?? new Date()).toISOString();
+      if (isDemo) {
+        const t: Transaction = {
+          id: `demo-${Date.now()}`,
+          occurred_at: occurred,
+          amount: Math.round(e.amount * 100) / 100,
+          direction: e.direction,
+          payee: e.payee?.trim() || null,
+          payee_key: null,
+          merchant: e.payee?.trim() || null,
+          vpa: null,
+          category: e.category,
+          category_source: 'user',
+          bank: null,
+          account: null,
+          upi_ref: null,
+          channel: 'cash',
+          source: 'manual',
+          note: e.note?.trim() || null,
+          hidden: false,
+          sms_id: null,
+        };
+        setTransactions((list) => [t, ...list]);
+        return;
+      }
+      const { error: err } = await supabase.rpc('add_manual_transaction', {
+        p_amount: e.amount,
+        p_category: e.category,
+        p_direction: e.direction,
+        p_payee: e.payee?.trim() || null,
+        p_note: e.note?.trim() || null,
+        p_occurred_at: occurred,
+        p_channel: 'cash',
+      });
+      if (err) throw new Error(friendly(err));
+      await load();
+    },
+    [load],
+  );
+
+  const deleteTransaction = useCallback(
+    async (id: string) => {
+      setTransactions((list) => list.filter((t) => t.id !== id));
+      await write(() => supabase.from('transactions').delete().eq('id', id));
+    },
+    [write],
+  );
+
   const review = useMemo(() => reviewQueue(transactions), [transactions]);
 
   const value = useMemo<DataContextValue>(
@@ -272,9 +362,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       resolveReview,
       updateTransaction,
       dismissSms,
+      budgets,
+      setBudget,
+      addManual,
+      deleteTransaction,
       signOut: apiSignOut,
+      deleteAccount: apiDeleteAccount,
     }),
-    [mode, ready, session, recovering, transactions, inbox, review, loading, refreshing, error, refresh, setCategory, resolveReview, updateTransaction, dismissSms],
+    [mode, ready, session, recovering, transactions, inbox, review, loading, refreshing, error, refresh, setCategory, resolveReview, updateTransaction, dismissSms, budgets, setBudget, addManual, deleteTransaction],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

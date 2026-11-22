@@ -10,9 +10,10 @@ apps/mobile/        Expo (SDK 58) app
 packages/core/      @gullak/core: SMS parser, categoriser, capture pipeline (pure TypeScript)
                       used by: Supabase ingest function, Android app (on-device), tests
 supabase/
-  migrations/       schema, row-level security, SQL functions (summaries, recurring, export…)
+  migrations/       schema, row-level security, RPCs (review, cash entries, capture key, delete account)
   functions/        Edge Functions: ingest (capture), config (public settings)
-infra/              EC2 + Caddy: serves the PWA, forwards /ingest to Supabase; deploy.ps1
+infra/              EC2 + Caddy: serves the PWA, forwards /ingest to Supabase, runs the category model
+                    (llm-setup.sh: llama.cpp + Qwen3 0.6B); deploy.ps1
 legacy/server/      old Node + SQLite server, kept only until the first user's data is moved; then delete
 docs/               this file, API.md (backend contract), ANDROID.md, FEATURES.md, SETUP.md
 ```
@@ -26,16 +27,17 @@ Android:  bank SMS → app's SMS receiver → looksFinancial() on the phone → 
                                               (user's token; batches for imports)
 
 ingest → @gullak/core.processCapture
-         → store raw SMS (sms_inbox) → parse → categorise (user rule → known merchant → heuristics
-           → optional AI → "needs review") → dedupe (UPI ref / SMS hash) → transactions
+         → store raw SMS (sms_inbox) → parse → category: your saved choice, else the AI model
+           (Qwen3 0.6B on EC2, via Caddy /llm) if ≥60% sure, else Review → dedupe (UPI ref / SMS hash) → transactions
          → push: Web Push (iPhone) / Expo push (Android)
-apps   ← Realtime on `transactions` + SQL functions for summaries
+apps   ← Realtime on `transactions` and `budgets`; summaries computed in the shared app code
 ```
 
 ## Principles
 - **One parser.** `packages/core` is the only place that understands SMS. Fix a bank format once.
-- **Backend does the maths.** Totals, trends, recurring detection and exports are SQL functions, so both
-  apps show the same numbers and the UI stays thin.
+- **One set of maths.** Dashboard, trend, subscriptions and budgets are pure, tested functions in the shared
+  app code (`apps/mobile/src/lib/stats.ts`), so Android and iPhone show identical numbers, offline too.
+- **AI only for categories.** No merchant lists or keyword rules: your own choices first, then the model.
 - **Security by row-level security.** Apps hold only the publishable key; every table checks `auth.uid()`.
   The only privileged code is in Edge Functions (service key from Supabase's environment).
 - **Idempotent capture.** Every message can be sent again safely (dedupe keys), so apps can retry freely.

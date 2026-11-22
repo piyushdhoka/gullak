@@ -73,6 +73,14 @@ ${REDIRECTS}${DOMAIN} {
 		${INGEST_BLOCK}
 	}
 
+	# The category model (llama-server, see llm-setup.sh). Only these two endpoints are exposed, and
+	# llama-server itself rejects requests without its API key (held by the Supabase ingest function).
+	@llm path /llm/completion /llm/health
+	handle @llm {
+		uri strip_prefix /llm
+		reverse_proxy 127.0.0.1:8090
+	}
+
 	handle {
 		root * ${APP}/dist
 		# Hashed bundles never change; HTML, the manifest and the service worker must always be fresh.

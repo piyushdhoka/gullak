@@ -94,3 +94,10 @@ export const demoInbox: SmsMessage[] = [
     reason: 'no amount',
   },
 ];
+
+/** Sample monthly limits for demo mode. */
+export const demoBudgets: { category: string; monthly_limit: number }[] = [
+  { category: 'Food', monthly_limit: 6000 },
+  { category: 'Groceries', monthly_limit: 5000 },
+  { category: 'Shopping', monthly_limit: 4000 },
+];

@@ -1,94 +1,84 @@
 import { describe, expect, it } from 'vitest';
 
-import { categorize, isOpaquePayee } from '../src/categorize.ts';
+import { categorize, displayName, isOpaquePayee } from '../src/categorize.ts';
+import { buildCategoryPrompt, candidatesFrom, completionRequest, OPTION_LETTERS, pickCategory } from '../src/classify.ts';
 
 const base = { direction: 'debit' as const, channel: 'upi' as const, payee: null, vpa: null, text: '' };
 
-describe('categorize', () => {
-  it('known merchant by payee name', () => {
-    expect(categorize({ ...base, payee: 'SWIGGY' })).toEqual({ category: 'Food', merchant: 'Swiggy', source: 'merchant' });
-  });
-
-  it('known merchant by VPA', () => {
-    expect(categorize({ ...base, payee: 'zepto.payu', vpa: 'zepto.payu@hdfcbank' })).toMatchObject({
-      category: 'Groceries',
-      merchant: 'Zepto',
-    });
-  });
-
-  it("owner's rule beats everything and is marked as the user's choice", () => {
+describe('categorize (no hand-written rules)', () => {
+  it("uses the owner's rule, including their own category names", () => {
     expect(categorize({ ...base, payee: 'SWIGGY' }, 'Groceries')).toMatchObject({ category: 'Groceries', source: 'user' });
+    expect(categorize({ ...base, payee: 'SWIGGY' }, 'Office lunch')).toMatchObject({ category: 'Office lunch', source: 'user' });
   });
 
-it("uses the owner's own custom category (rules are validated when saved)", () => {    expect(categorize({ ...base, payee: 'SWIGGY' }, 'Office lunch')).toMatchObject({ category: 'Office lunch', source: 'user' });  });  it('ignores an empty owner rule', () => {    expect(categorize({ ...base, payee: 'SWIGGY' }, '  ').category).toBe('Food');  });
-
-  it('name-like personal VPA is a transfer, with a readable name', () => {
-    expect(categorize({ ...base, payee: 'rahul.k', vpa: 'rahul.k@okicici' })).toEqual({
-      category: 'Transfers',
-      merchant: 'Rahul K',
-      source: 'heuristic',
-    });
-  });
-
-  it('mobile-number VPA is a person', () => {
-    expect(categorize({ ...base, payee: '9876543210', vpa: '9876543210@ybl' })).toMatchObject({
-      category: 'Transfers',
-      source: 'heuristic',
-    });
-  });
-
-  it('Axis P2A narration is a person, P2M is not', () => {
-    expect(categorize({ ...base, payee: 'RAHUL', text: 'UPI/P2A/528461234567/RAHUL' }).category).toBe('Transfers');
-    expect(categorize({ ...base, payee: 'SHARMA STORE', text: 'UPI/P2M/528461234567/SHARMA STORE' }).source).toBe('unknown');
-  });
-
-  it('a readable shop name is categorised from its words, not mistaken for a person', () => {
-    expect(categorize({ ...base, payee: 'sharma.medicals', vpa: 'sharma.medicals@ybl' })).toMatchObject({
-      category: 'Health',
-      source: 'heuristic',
-    });
-    expect(categorize({ ...base, payee: 'SHREE GANESH MEDICAL' }).category).toBe('Health');
-    expect(categorize({ ...base, payee: 'BALAJI KIRANA STORE' }).category).toBe('Groceries');
-    expect(categorize({ ...base, payee: 'PUNJABI DHABA' }).category).toBe('Food');
-    expect(categorize({ ...base, payee: 'HP PETROL PUMP' }).category).toBe('Transport');
-  });
-
-  it('a readable name with no clue stays unknown (for the model or review)', () => {
-    expect(categorize({ ...base, payee: 'SHREE GANESH ENTERPRISES' })).toMatchObject({ category: 'Other', source: 'unknown' });
-  });
-
-  it('QR codes and IDs are unknown (left for one-tap review), not guessed', () => {
-    for (const [payee, vpa] of [
-      ['paytmqr2810050501', 'paytmqr2810050501@paytm'],
-      ['Q482915273', 'Q482915273@ybl'],
-      ['BHARATPE09812345678', 'bharatpe09812345678@yesbankltd'],
-    ]) {
-      expect(categorize({ ...base, payee, vpa })).toMatchObject({ category: 'Other', source: 'unknown' });
-    }
-  });
-
-  it('ATM is Cash', () => {
-    expect(categorize({ ...base, channel: 'atm', payee: 'ATM' })).toMatchObject({ category: 'Cash', source: 'heuristic' });
-  });
-
-  it('credits are Income, refunds are Refund', () => {
-    expect(categorize({ ...base, direction: 'credit', payee: 'ACME' }).category).toBe('Income');
-    expect(categorize({ ...base, direction: 'credit', payee: 'AMAZON', text: 'Refund of Rs 299' }).category).toBe('Refund');
+  it('leaves everything else undecided for the model, even well-known merchants', () => {
+    expect(categorize({ ...base, payee: 'SWIGGY' })).toEqual({ category: 'Other', merchant: 'Swiggy', source: 'unknown' });
+    expect(categorize({ ...base, payee: 'SWIGGY' }, '  ').source).toBe('unknown');
   });
 });
 
-describe('isOpaquePayee', () => {
-  it.each([
-    ['paytmqr2810050501', 'paytmqr2810050501@paytm', true],
-    ['Q482915273', 'Q482915273@ybl', true],
-    ['BHARATPE09812345678', null, true],
-    ['9876543210', '9876543210@ybl', true],
-    ['ab12345', null, true],
-    [null, null, true],
-    ['SHREE GANESH MEDICAL', null, false],
-    ['sharma.medicals', 'sharma.medicals@ybl', false],
-    ['ZOMATO LTD', null, false],
-  ])('%s / %s → %s', (payee, vpa, expected) => {
-    expect(isOpaquePayee(payee, vpa)).toBe(expected);
+describe('displayName', () => {
+  it('tidies readable names and leaves IDs alone', () => {
+    expect(displayName('SHREE GANESH ENTERPRISES', null)).toBe('Shree Ganesh Enterprises');
+    expect(displayName('rahul.k', 'rahul.k@okicici')).toBe('Rahul K');
+    expect(displayName('paytmqr2810050501', 'paytmqr2810050501@paytm')).toBe('paytmqr2810050501');
+    expect(displayName(null, null)).toBeNull();
+  });
+
+  it('spots QR codes and gateway IDs', () => {
+    expect(isOpaquePayee('paytmqr2810050501', 'paytmqr2810050501@paytm')).toBe(true);
+    expect(isOpaquePayee('9876543210', '9876543210@ybl')).toBe(true);
+    expect(isOpaquePayee('Rahul Kumar', null)).toBe(false);
+  });
+});
+
+describe('category model prompt (SemIf style)', () => {
+  const input = { payee: 'SHREE GANESH MEDICAL', vpa: null, direction: 'debit' as const, text: 'Sent Rs.120.00 To SHREE GANESH MEDICAL' };
+
+  it('lists every category as a letter and ends where the answer letter goes', () => {
+    const p = buildCategoryPrompt(input);
+    expect(p).toContain('A) Food:');
+    expect(p).toContain('N) Other:');
+    expect(p).toContain('Money paid to: SHREE GANESH MEDICAL');
+    expect(p.endsWith('<|im_start|>assistant\n<think>\n\n</think>\n\n')).toBe(true);
+    expect(OPTION_LETTERS.H).toBe('Health');
+  });
+
+  it('keeps the fixed instructions first so the server can cache them', () => {
+    const a = buildCategoryPrompt(input);
+    const b = buildCategoryPrompt({ ...input, payee: 'ZEPTO', text: 'Rs 374 to zepto' });
+    const shared = a.slice(0, a.indexOf('Payment:'));
+    expect(b.startsWith(shared)).toBe(true);
+  });
+
+  it('asks for exactly one token with probabilities', () => {
+    expect(completionRequest(input)).toMatchObject({ n_predict: 1, n_probs: 20, temperature: 0, cache_prompt: true });
+  });
+});
+
+describe('pickCategory', () => {
+  it('reads letter probabilities and adds up spellings of the same letter', () => {
+    const r = pickCategory([
+      { token: 'H', logprob: Math.log(0.55) },
+      { token: ' H', logprob: Math.log(0.2) },
+      { token: 'A', logprob: Math.log(0.1) },
+      { token: 'The', logprob: Math.log(0.05) },
+    ]);
+    expect(r?.category).toBe('Health');
+    expect(r?.confidence).toBeCloseTo(0.75, 5);
+  });
+
+  it('understands the older {tok_str, prob} shape', () => {
+    expect(pickCategory([{ tok_str: 'B', prob: 0.9 }])).toEqual({ category: 'Groceries', confidence: 0.9 });
+  });
+
+  it('returns null when no option letter came up', () => {
+    expect(pickCategory([{ token: 'Hello', logprob: -0.1 }, { token: 'Z', logprob: -0.2 }])).toBeNull();
+  });
+
+  it('reads candidates out of a llama-server response', () => {
+    const response = { content: 'H', completion_probabilities: [{ token: 'H', top_logprobs: [{ token: 'H', logprob: -0.2 }] }] };
+    expect(candidatesFrom(response)).toEqual([{ token: 'H', logprob: -0.2 }]);
+    expect(candidatesFrom({})).toEqual([]);
   });
 });

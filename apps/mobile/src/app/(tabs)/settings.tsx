@@ -1,5 +1,8 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+
+import { confirm } from '@/lib/confirm';
 
 import { Wordmark } from '@/components/wordmark';
 import { APP_NAME, TAGLINE_EN } from '@/lib/app';
@@ -10,9 +13,28 @@ import { Text } from '@/ui/text';
 import { useColors } from '@/ui/theme';
 
 export default function SettingsScreen() {
-  const { mode, session, inbox, transactions, signOut } = useData();
+  const { mode, session, inbox, transactions, budgets, signOut, deleteAccount } = useData();
   const c = useColors();
   const hidden = transactions.filter((t) => t.hidden).length;
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const removeAccount = async () => {
+    const sure = await confirm(
+      'Delete your Gullak account?',
+      `Everything for ${session?.email ?? 'this account'} is deleted for good: payments, messages, budgets, devices.`,
+      'Delete',
+    );
+    if (!sure) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+    } catch (e) {
+      setDeleteError((e as Error).message);
+      setDeleting(false);
+    }
+  };
   return (
     <Screen title="Settings">
       <Section header="Account">
@@ -24,6 +46,40 @@ export default function SettingsScreen() {
           }
           title={mode === 'live' ? session?.email ?? 'Signed in' : 'Demo mode'}
           subtitle={mode === 'live' ? 'Signed in' : 'Showing sample data'}
+        />
+      </Section>
+
+      <Section header="Money">
+        <Row
+          left={
+            <IconTile color={c.green}>
+              <Text style={{ fontSize: 16 }}>🎯</Text>
+            </IconTile>
+          }
+          title="Budgets"
+          value={budgets.length ? String(budgets.length) : undefined}
+          chevron
+          onPress={() => router.push('/budgets')}
+        />
+        <Row
+          left={
+            <IconTile color={c.purple}>
+              <Text style={{ fontSize: 16 }}>🔁</Text>
+            </IconTile>
+          }
+          title="Subscriptions & repeats"
+          chevron
+          onPress={() => router.push('/subscriptions')}
+        />
+        <Row
+          left={
+            <IconTile color={c.brown}>
+              <Text style={{ fontSize: 16 }}>💵</Text>
+            </IconTile>
+          }
+          title="Add a cash payment"
+          chevron
+          onPress={() => router.push('/add')}
         />
       </Section>
 
@@ -51,15 +107,21 @@ export default function SettingsScreen() {
         />
       </Section>
 
-      <Section header="About" footer={`${APP_NAME} reads bank SMS that an iOS Shortcut forwards to your own private server. Personal messages are discarded without being stored.`}>
+
+      <Section header="About" footer={`${APP_NAME} reads the SMS your bank sends (forwarded by an iOS Shortcut on iPhone) and sorts each payment with a small AI model. Personal messages are discarded without being stored.`}>
         <Row title="Version" value="0.1.0" />
-        <Row title="Capture" value="SMS · iOS Shortcut" />
+        <Row title="Categories by" value="Qwen3 0.6B" />
       </Section>
 
       {mode === 'live' ? (
-        <Section>
-          <Row title="Sign Out" destructive onPress={signOut} />
-        </Section>
+        <>
+          <Section>
+            <Row title="Sign Out" destructive onPress={signOut} />
+          </Section>
+          <Section footer={deleteError ?? 'Deletes your account, every payment, message, budget and device. This can’t be undone.'}>
+            <Row title={deleting ? 'Deleting…' : 'Delete Account'} destructive disabled={deleting} onPress={removeAccount} />
+          </Section>
+        </>
       ) : null}
 
       <View style={styles.signature}>

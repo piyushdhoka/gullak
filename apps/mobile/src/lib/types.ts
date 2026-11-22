@@ -1,5 +1,5 @@
 export type Direction = 'debit' | 'credit';
-export type Channel = 'upi' | 'card' | 'netbanking' | 'atm' | 'other';
+export type Channel = 'upi' | 'card' | 'netbanking' | 'atm' | 'cash' | 'other';
 
 export interface Transaction {
   id: string;

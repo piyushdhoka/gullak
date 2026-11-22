@@ -10,7 +10,9 @@
 //
 // Deployed with JWT verification off: authentication is the capture key or the user's own JWT.
 // Parsing and categorising live in packages/core (shared with the Android app and the tests).
+// Categories come only from the owner's saved choices and the AI model; nothing else guesses.
 
+import { candidatesFrom, completionRequest, pickCategory } from '../../../packages/core/src/classify.ts';
 import { processCapture, sha256Hex, type CaptureResult, type ClassifyResult, type IngestDeps } from '../../../packages/core/src/ingest-core.ts';
 import { admin, CORS, json, notifyUser } from '../_shared/server.ts';
 
@@ -85,7 +87,10 @@ async function readBody(req: Request): Promise<{ messages: Message[]; batch: boo
   }
 }
 
-const CLASSIFIER_URL = Deno.env.get('CLASSIFIER_URL');
+// e.g. https://gullak.sparkstudio.co.in/llm (Caddy → llama-server on the EC2 box). Unset = no model: all to Review.
+const CLASSIFIER_URL = Deno.env.get('CLASSIFIER_URL')?.replace(/\/$/, '');
+// The model is the only classifier, so give it time; on a timeout the payment still saves and goes to Review.
+const CLASSIFIER_TIMEOUT_MS = Number(Deno.env.get('CLASSIFIER_TIMEOUT_MS') ?? '') || 8000;
 
 function makeDeps(origin: Origin, quiet: boolean): IngestDeps {
   return {
@@ -107,19 +112,20 @@ function makeDeps(origin: Origin, quiet: boolean): IngestDeps {
         .maybeSingle();
       return data?.category ?? null;
     },
+    // The category model: Qwen3 0.6B on llama-server, scored SemIf-style (see packages/core/src/classify.ts).
     classify: CLASSIFIER_URL
       ? async (input): Promise<ClassifyResult | null> => {
-          const res = await fetch(CLASSIFIER_URL, {
+          const res = await fetch(`${CLASSIFIER_URL}/completion`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('CLASSIFIER_TOKEN') ?? ''}` },
-            body: JSON.stringify(input),
-            signal: AbortSignal.timeout(1500),
+            body: JSON.stringify(completionRequest(input)),
+            signal: AbortSignal.timeout(CLASSIFIER_TIMEOUT_MS),
           });
-          if (!res.ok) return null;
-          const body = await res.json();
-          return typeof body?.category === 'string' && typeof body?.confidence === 'number'
-            ? { category: body.category, confidence: body.confidence }
-            : null;
+          if (!res.ok) {
+            console.error('classifier answered', res.status);
+            return null;
+          }
+          return pickCategory(candidatesFrom(await res.json()));
         }
       : undefined,
     async insertTransaction(row) {
