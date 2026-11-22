@@ -1,6 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { explainCategory, type Explanation } from '@gullak/core';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -11,7 +10,7 @@ import { accountLabel, displayName, fullDate, signedMoney } from '@/lib/format';
 import { isDemo, supabase } from '@/lib/api';
 import { Row, Section, SwitchRow } from '@/ui/list';
 import { Screen } from '@/ui/screen';
-import { PixelBar, Sticker } from '@/ui/sticker';
+import { Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { fontFamily, layout, type, useColors } from '@/ui/theme';
 
@@ -31,35 +30,6 @@ const SOURCE_LABEL: Record<string, string | undefined> = {
   model: 'Guessed by Gullak. Check it',
   unknown: 'Pick one below. Gullak remembers it for this payee',
 };
-
-type Odds = { category: string; p: number }[];
-
-// One answer per payee per session: the same payee gets the same odds.
-const oddsCache = new Map<string, Odds | null>();
-
-/** The AI's odds for each category of this payment (null when it can't judge, e.g. a QR code). */
-function useOdds(id: string | undefined, payeeKey: string | null | undefined): Odds | null {
-  const key = payeeKey ?? id ?? '';
-  const [odds, setOdds] = useState<Odds | null>(() => oddsCache.get(key) ?? null);
-  useEffect(() => {
-    if (isDemo || !id || oddsCache.has(key)) return;
-    let alive = true;
-    supabase.functions
-      .invoke<{ odds: Odds | null }>('why', { body: { transaction_id: id } })
-      .then(({ data }) => {
-        const value = data?.odds?.length ? data.odds : null;
-        oddsCache.set(key, value);
-        if (alive) setOdds(value);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [id, key]);
-  return odds;
-}
-
-const pct = (p: number) => (p >= 0.995 ? '99%' : p < 0.01 ? '<1%' : `${Math.round(p * 100)}%`);
 
 /** The torn bottom edge of a paper bill. Stretches to its box. */
 function Zigzag({ color, outline }: { color: string; outline: string }) {
@@ -91,67 +61,6 @@ function Perforation() {
   );
 }
 
-/** "Why?": the reason for the category, the AI's odds when there are any, and one-tap fixes. */
-function Why({ why, odds, current, onPick }: { why: Explanation; odds: Odds | null; current: string; onPick: (category: string) => void }) {
-  const c = useColors();
-  const options: { category: string; p?: number }[] = odds
-    ? odds.slice(0, 4)
-    : [{ category: current }, ...why.alternatives.filter((x) => x !== current).map((category) => ({ category }))].slice(0, 4);
-  return (
-    <Section header="Why this category?">
-      <View style={styles.why}>
-        <Text variant="subheadline">{why.reason}</Text>
-        {odds ? (
-          <Text variant="footnote" color="secondaryLabel">
-            How sure Gullak’s AI is. Tap another to switch.
-          </Text>
-        ) : (
-          <Text variant="footnote" color="secondaryLabel">
-            Not right? Tap the one it should be.
-          </Text>
-        )}
-        <View style={{ gap: 6 }}>
-          {options.map(({ category, p }) => {
-            const selected = category === current;
-            return (
-              <Pressable
-                key={category}
-                onPress={() => !selected && onPick(category)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                accessibilityLabel={`${category}${p != null ? `, ${pct(p)}` : ''}${selected ? ', current category' : ', switch to this'}`}
-                style={({ pressed }) => [
-                  styles.option,
-                  { borderColor: selected ? c.outline : c.separator, backgroundColor: selected ? `${c.tint}14` : 'transparent' },
-                  pressed && !selected && { backgroundColor: c.fillTertiary },
-                ]}>
-                <CategoryTile category={category} size={26} />
-                <View style={{ flex: 1, gap: 4 }}>
-                  <View style={styles.optionTop}>
-                    <Text variant="subheadline" weight={selected ? '700' : '500'} style={{ flex: 1 }}>
-                      {category}
-                    </Text>
-                    {p != null ? (
-                      <Text pixel variant="subheadline" color={selected ? 'tint' : 'secondaryLabel'}>
-                        {pct(p)}
-                      </Text>
-                    ) : selected ? (
-                      <Text variant="footnote" weight="600" color="tint">
-                        Current
-                      </Text>
-                    ) : null}
-                  </View>
-                  {p != null ? <PixelBar value={p} color={selected ? c.tint : c.gray} height={6} blocks={24} /> : null}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </Section>
-  );
-}
-
 export default function TransactionScreen() {
   const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -161,7 +70,6 @@ export default function TransactionScreen() {
   const [picking, setPicking] = useState(false);
   const [applyAll, setApplyAll] = useState(true);
   const [sms, setSms] = useState<string | null>(null);
-  const odds = useOdds(t?.id, t?.payee_key);
 
   useEffect(() => {
     if (isDemo || !t?.sms_id) return;
@@ -293,15 +201,6 @@ export default function TransactionScreen() {
         </Section>
       ) : null}
 
-      <Why
-        why={explainCategory(
-          { direction: t.direction, channel: t.channel === 'cash' ? 'other' : t.channel, payee: t.payee, vpa: t.vpa, text: sms ?? '' },
-          { category: t.category, source: t.category_source },
-        )}
-        odds={odds}
-        current={t.category}
-        onPick={(cat) => setCategory(t.id, cat, applyAll)}
-      />
 
       <Section header="Note">
         <NoteField
@@ -375,9 +274,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
   },
-  why: { padding: layout.inset, gap: 10 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, borderWidth: 1.5 },
-  optionTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   note: { minHeight: 72, margin: 12, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 2, textAlignVertical: 'top' },
   sms: { padding: layout.inset },
 });
