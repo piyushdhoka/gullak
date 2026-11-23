@@ -6,15 +6,13 @@
 #   - forwards /ingest/<capture key> (what the iOS Shortcuts post to) to Supabase's ingest function,
 #     so capture addresses keep working whatever the backend is.
 #
-# Deploying also switches off the old Node + SQLite server and the old model server if they're still there
-# (their data stays on disk: /var/lib/gullak).
+# Nothing else runs here: no Node, no database. The previous release stays in /opt/gullak.old for a rollback.
 set -euo pipefail
 
 DOMAIN="${DOMAIN:?set DOMAIN}"
 SUPABASE_HOST="${SUPABASE_HOST:-rupjxysgksruhhlokbvx.supabase.co}"
 CADDY_VERSION="2.11.9"
 APP=/opt/gullak
-DATA=/var/lib/gullak
 
 echo "== caddy ${CADDY_VERSION}"
 if ! command -v caddy >/dev/null || ! caddy version | grep -q "v${CADDY_VERSION}"; then
@@ -116,11 +114,9 @@ sudo -u caddy /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile --adap
 
 echo "== services"
 sudo systemctl daemon-reload
-# The old SQLite server and the old local model are retired; the SQLite data stays in ${DATA} as a backup.
-sudo systemctl disable --now gullak gullak-llm >/dev/null 2>&1 || true
 sudo systemctl enable caddy >/dev/null 2>&1
 sudo systemctl reload caddy 2>/dev/null || sudo systemctl restart caddy
 sleep 2
 curl -fsS -o /dev/null -w "site %{http_code}\n" "https://${DOMAIN}/" --resolve "${DOMAIN}:443:127.0.0.1"
 systemctl is-active caddy
-rm -f /tmp/gullak-release.tgz
+rm -f /tmp/gullak-release.tgz /tmp/gullak-setup.sh
