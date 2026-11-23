@@ -308,7 +308,7 @@
 .hero {
   display: grid;
   justify-items: center;
-  gap: 40px;
+  gap: 20px;
   max-width: 1160px;
   margin: 0 auto;
   padding: 48px 20px 56px;
@@ -317,7 +317,7 @@
 
 @media (min-width: 980px) {
   .hero {
-    gap: 56px;
+    gap: 24px;
     padding: 72px 32px 88px;
   }
 }
@@ -354,12 +354,16 @@
     max-width: none;
     line-height: 0.9;
   }
+  /* Two even lines instead of a lone last word. */
+  .heroText .lede {
+    max-width: 44em;
+  }
 }
 
 /* The phone (and the buttons under it) start low and rise into full view as you scroll (useRise sets --rise
    from 0 to 1). Only a transform moves, so it stays smooth. */
 .rise {
-  --rise-from: 90px;
+  --rise-from: 28px;
   width: 100%;
   display: grid;
   justify-items: center;
@@ -369,7 +373,7 @@
 
 @media (min-width: 980px) {
   .rise {
-    --rise-from: 150px;
+    --rise-from: 36px;
   }
 }
 
@@ -718,7 +722,7 @@
 
 @media (max-width: 979px) {
   .stage {
-    margin-top: 44px;
+    margin-top: 30px;
   }
   .phone {
     margin-right: auto;
