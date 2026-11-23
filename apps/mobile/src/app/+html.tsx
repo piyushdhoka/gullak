@@ -13,9 +13,12 @@ export default function Root({ children }: PropsWithChildren) {
         <title>Gullak · Every rupee, sorted on its own</title>
         <meta name="description" content="Every rupee you spend, recorded on its own." />
 
-        {/* The main text font: fetch it early so the first paint already uses Geist. */}
+        {/* The main text font: fetch every above-the-fold font early; with font-display: block the first paint waits for them instead of flashing a fallback. */}
         <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/jersey-10.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        {/* The rupee sign lives in the latin-ext subset, so that file is needed on first paint too. */}
+        <link rel="preload" href="/fonts/geist-latin-ext.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/jersey-10.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/noto-devanagari.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 
         {/* Installable web app (Add to Home Screen) */}
