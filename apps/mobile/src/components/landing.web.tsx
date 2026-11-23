@@ -11,9 +11,9 @@
 // Everything renders statically (expo export pre-renders it): no window/document access during render.
 
 import { router, type Href } from 'expo-router';
-import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from 'react';
 
-import { APP_NAME, MAKER, WORDMARK } from '@/lib/app';
+import { APP_NAME, MAKERS, WORDMARK } from '@/lib/app';
 import { faqLd, FAQS, howToLd, INSTALL_STEPS, organizationLd, PAGES, STEPS, webApplicationLd, type PageKey } from '@/lib/seo';
 import { CategoryTile, MerchantTile } from '@/components/txn-row';
 import { Glyph } from '@/ui/glyphs';
@@ -118,9 +118,18 @@ function Site({
         </div>
         <p className={styles.footerMaker}>
           Made by{' '}
-          <a href={MAKER.url} target="_blank" rel="noopener" lang="en">
-            {MAKER.name}
-          </a>
+          {MAKERS.map((m, i) => (
+            <Fragment key={m.name}>
+              {i > 0 ? (i === MAKERS.length - 1 ? ' and ' : ', ') : null}
+              {m.url ? (
+                <a href={m.url} target="_blank" rel="noopener" lang="en">
+                  {m.name}
+                </a>
+              ) : (
+                <span lang="en">{m.name}</span>
+              )}
+            </Fragment>
+          ))}
         </p>
       </footer>
     </div>
