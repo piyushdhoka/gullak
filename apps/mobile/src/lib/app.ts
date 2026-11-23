@@ -15,7 +15,7 @@ export const MAKER = { name: 'Piyush Dhoka', url: 'https://piyush.sparkstudio.co
 export const MAKERS: readonly { name: string; url?: string }[] = [
   MAKER,
   { name: 'Vedant Pandhare', url: 'https://vedant.sparkstudio.co.in/' },
-  { name: 'Aadarsh Pathre' },
+  { name: 'Aadarsh Pathre', url: 'https://aadarsh.sparkstudio.co.in/' },
 ];
 
 export const TAGLINE_EN = 'Every rupee you spend, recorded on its own.';
