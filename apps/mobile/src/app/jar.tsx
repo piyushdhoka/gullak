@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { JarBreak, useJarBreak } from '@/components/jar-break';
 import { JarStatusChip } from '@/components/jar-status';
 import { PotMeter } from '@/components/pot-meter';
 import { confirm } from '@/lib/confirm';
@@ -25,6 +26,8 @@ export default function JarScreen() {
   const jar = jars.find((j) => j.id === id);
   const plan = useMemo(() => (jar ? jarPlan(jar, jarEntries, transactions) : null), [jar, jarEntries, transactions]);
   const entries = jarEntries.filter((e) => e.jar_id === id);
+  // The jar breaks open once, the first time it is seen full on this device.
+  const jarBreak = useJarBreak(jar?.id, plan?.status === 'done');
   const [mode, setMode] = useState<'in' | 'out'>('in');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
@@ -91,6 +94,7 @@ export default function JarScreen() {
 
   return (
     <Screen title={jar.name} largeTitle={false} back="Jars" tabBar={false}>
+      <JarBreak open={jarBreak.open} name={jar.name} target={money(jar.target, { whole: true })} onClose={jarBreak.dismiss} />
       {/* The one bold thing: the pot itself. */}
       <View style={styles.hero}>
         <PotMeter
