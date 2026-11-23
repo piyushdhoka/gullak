@@ -51,6 +51,68 @@ function SiteLink({ href, className, children, label }: { href: Href & string; c
 }
 
 /** Nav and footer shared by every public page. */
+/**
+ * Smooth, eased scrolling for mouse wheels and trackpads (Lenis), like notchman.app. Desktop only: on phones
+ * the browser's own touch scrolling (with momentum) is left alone. Skipped for reduced motion.
+ */
+function useSmoothWheel(pageRef: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let stopped = false;
+    let cleanup = () => {};
+    void import('lenis').then(({ default: Lenis }) => {
+      if (stopped) return;
+      const lenis = new Lenis({ wrapper: page, content: page, eventsTarget: page, lerp: 0.1, smoothWheel: true, syncTouch: false, autoRaf: true });
+      // Lenis only watches `content` for size changes; the page grows when sections/images load, so watch them too.
+      const ro = new ResizeObserver(() => lenis.resize());
+      Array.from(page.children).forEach((child) => ro.observe(child));
+      cleanup = () => {
+        ro.disconnect();
+        lenis.destroy();
+      };
+    });
+    return () => {
+      stopped = true;
+      cleanup();
+    };
+  }, [pageRef]);
+}
+
+/**
+ * The hero phone starts low (half of it below the fold) and rises into full view over the first part of the
+ * scroll, like notchman.app. Writes one CSS variable per frame; CSS turns it into a transform, so it runs on
+ * the compositor. Without JS or with reduced motion the phone just sits at its starting place.
+ */
+function useRise(pageRef: RefObject<HTMLDivElement | null>, targetRef: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const page = pageRef.current;
+    const target = targetRef.current;
+    if (!page || !target) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      target.style.setProperty('--rise', '1');
+      return;
+    }
+    const RANGE = 320;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      target.style.setProperty('--rise', Math.min(1, Math.max(0, page.scrollTop / RANGE)).toFixed(3));
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    page.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      page.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [pageRef, targetRef]);
+}
+
 function Site({
   children,
   pageRef,
@@ -67,8 +129,11 @@ function Site({
   useEffect(() => {
     document.title = PAGES[page].title;
   }, [page]);
+  const ownRef = useRef<HTMLDivElement>(null);
+  const ref = pageRef ?? ownRef;
+  useSmoothWheel(ref);
   return (
-    <div className={styles.page} ref={pageRef}>
+    <div className={styles.page} ref={ref}>
       {ld.map((d, i) => (
         <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(d).replace(/</g, '\\u003c') }} />
       ))}
@@ -170,8 +235,11 @@ export function Landing() {
   useEffect(() => {
     if (hasAuthLinkError()) router.replace('/sign-in');
   }, []);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const riseRef = useRef<HTMLDivElement>(null);
+  useRise(pageRef, riseRef);
   return (
-    <Site page="home" ld={[webApplicationLd(), organizationLd()]}>
+    <Site page="home" ld={[webApplicationLd(), organizationLd()]} pageRef={pageRef}>
       <header className={styles.hero}>
         <div className={styles.heroText}>
           <p className={styles.badge}>
@@ -183,9 +251,13 @@ export function Landing() {
             Pay with GPay, PhonePe or a card. Your bank texts you, and Gullak turns that SMS into a sorted, totalled
             expense a few seconds later. Nothing to type.
           </p>
-          <GetIt />
         </div>
-        <HeroPhone />
+        <div className={styles.rise} ref={riseRef}>
+          <HeroPhone />
+          <div className={styles.heroCta}>
+            <GetIt />
+          </div>
+        </div>
       </header>
 
       <main>

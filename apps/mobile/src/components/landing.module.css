@@ -339,8 +339,53 @@
   justify-content: center;
 }
 
-.heroText .qrCard {
+.heroText .qrCard,
+.heroCta .qrCard {
   text-align: left;
+}
+
+/* Desktop: a compact one-line headline (like notchman), so the phone starts high enough to half-show. */
+@media (min-width: 980px) {
+  .hero {
+    padding-top: 56px;
+  }
+  .heroText .h1 {
+    font-size: clamp(64px, 6.2vw, 96px);
+    max-width: none;
+    line-height: 0.9;
+  }
+}
+
+/* The phone (and the buttons under it) start low and rise into full view as you scroll (useRise sets --rise
+   from 0 to 1). Only a transform moves, so it stays smooth. */
+.rise {
+  --rise-from: 90px;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  translate: 0 calc((1 - var(--rise, 0)) * var(--rise-from));
+  will-change: translate;
+}
+
+@media (min-width: 980px) {
+  .rise {
+    --rise-from: 150px;
+  }
+}
+
+.heroCta {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.heroCta .onTouch {
+  justify-content: center;
+}
+
+/* Lenis drives the scroll position itself; the browser's own smooth scrolling would fight it. */
+.page:global(.lenis-smooth) {
+  scroll-behavior: auto !important;
 }
 
 .badge {
