@@ -6,7 +6,8 @@
 #   - forwards /ingest/<capture key> (what the iOS Shortcuts post to) to Supabase's ingest function,
 #     so capture addresses keep working whatever the backend is.
 #
-# Nothing else runs here: no Node, no database. The previous release stays in /opt/gullak.old for a rollback.
+# Nothing else runs here: no Node, no database. Only the current release is kept on disk: the previous one
+# is deleted once the new one is serving.
 set -euo pipefail
 
 DOMAIN="${DOMAIN:?set DOMAIN}"
@@ -119,4 +120,6 @@ sudo systemctl reload caddy 2>/dev/null || sudo systemctl restart caddy
 sleep 2
 curl -fsS -o /dev/null -w "site %{http_code}\n" "https://${DOMAIN}/" --resolve "${DOMAIN}:443:127.0.0.1"
 systemctl is-active caddy
+# The new release is serving: drop the previous one and the upload.
+sudo rm -rf "$APP.old"
 rm -f /tmp/gullak-release.tgz /tmp/gullak-setup.sh
