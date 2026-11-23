@@ -14,7 +14,7 @@ import { router, type Href } from 'expo-router';
 import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from 'react';
 
 import { APP_NAME, MAKER, WORDMARK } from '@/lib/app';
-import { faqLd, FAQS, howToLd, INSTALL_STEPS, organizationLd, STEPS, webApplicationLd } from '@/lib/seo';
+import { faqLd, FAQS, howToLd, INSTALL_STEPS, organizationLd, PAGES, STEPS, webApplicationLd, type PageKey } from '@/lib/seo';
 import { BRAND_LOGOS } from '@/ui/brand-logos';
 
 import { hasAuthLinkError } from './auth-link';
@@ -37,7 +37,21 @@ function SiteLink({ href, className, children, label }: { href: Href & string; c
     // would bounce a visitor to sign-in. Loading "/" lets the server-rendered website home show.
     if (href === '/') return;
     e.preventDefault();
-    router.push(href);
+    const go = () => router.push(href);
+    // Crossfade between pages where the browser supports View Transitions (skipped for reduced motion).
+    const doc = document as Document & { startViewTransition?: (update: () => Promise<void>) => unknown };
+    if (doc.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      doc.startViewTransition(
+        () =>
+          new Promise<void>((resolve) => {
+            go();
+            // Let React commit the new route before the browser captures the "after" snapshot.
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          }),
+      );
+    } else {
+      go();
+    }
   };
   const current = typeof window !== 'undefined' && window.location.pathname === href;
   return (
@@ -52,12 +66,18 @@ function Site({
   children,
   pageRef,
   ld = [],
+  page,
 }: {
   children: ReactNode;
   pageRef?: RefObject<HTMLDivElement | null>;
   /** schema.org objects for this page, written into the HTML as JSON-LD. */
   ld?: object[];
+  /** Keeps the tab title right after in-site navigation (the static HTML already has it). */
+  page: PageKey;
 }) {
+  useEffect(() => {
+    document.title = PAGES[page].title;
+  }, [page]);
   return (
     <div className={styles.page} ref={pageRef}>
       {ld.map((d, i) => (
@@ -154,7 +174,7 @@ export function Landing() {
     if (hasAuthLinkError()) router.replace('/sign-in');
   }, []);
   return (
-    <Site ld={[webApplicationLd(), organizationLd()]}>
+    <Site page="home" ld={[webApplicationLd(), organizationLd()]}>
       <header className={styles.hero}>
         <div className={styles.heroText}>
           <p className={styles.badge}>
@@ -259,6 +279,7 @@ export function HowItWorksPage() {
   const pageRef = useRef<HTMLDivElement>(null);
   return (
     <Site
+      page="how-it-works"
       pageRef={pageRef}
       ld={[howToLd('How Gullak turns a bank SMS into a sorted expense', STEPS.map((x) => ({ name: x.title, text: x.text })), '/how-it-works')]}>
       <main className={styles.subpage}>
@@ -272,7 +293,7 @@ export function HowItWorksPage() {
 /** "/features" */
 export function FeaturesPage() {
   return (
-    <Site>
+    <Site page="features">
       <main className={styles.subpage}>
         <PageHead
           id="features-title"
@@ -409,7 +430,7 @@ export function FeaturesPage() {
 /** "/faq" */
 export function FaqPage() {
   return (
-    <Site ld={[faqLd()]}>
+    <Site page="faq" ld={[faqLd()]}>
       <main className={styles.subpage}>
         <PageHead
           id="faq-title"
@@ -433,7 +454,7 @@ export function FaqPage() {
 /** "/install": the three steps on a phone, a QR code on a laptop. */
 export function InstallPage() {
   return (
-    <Site ld={[howToLd('How to add Gullak to your iPhone', INSTALL_STEPS, '/install')]}>
+    <Site page="install" ld={[howToLd('How to add Gullak to your iPhone', INSTALL_STEPS, '/install')]}>
       <main className={styles.subpage}>
         <PageHead
           id="install-title"
