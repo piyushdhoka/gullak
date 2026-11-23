@@ -14,6 +14,9 @@ DOMAIN="${DOMAIN:?set DOMAIN}"
 SUPABASE_HOST="${SUPABASE_HOST:-rupjxysgksruhhlokbvx.supabase.co}"
 CADDY_VERSION="2.11.9"
 APP=/opt/gullak
+# CloudFront (distribution E1IHHA51GPYBNM) fetches the site from this name; ${DOMAIN} itself points at CloudFront.
+# Caddy must keep answering as both, or CloudFront returns 502.
+ORIGIN="${ORIGIN:-origin.${DOMAIN}}"
 
 echo "== caddy ${CADDY_VERSION}"
 if ! command -v caddy >/dev/null || ! caddy version | grep -q "v${CADDY_VERSION}"; then
@@ -49,7 +52,7 @@ done
 
 sudo mkdir -p /etc/caddy
 sudo tee /etc/caddy/Caddyfile >/dev/null <<EOF
-${REDIRECTS}${DOMAIN} {
+${REDIRECTS}${DOMAIN}, ${ORIGIN} {
 	encode zstd gzip
 	header Strict-Transport-Security "max-age=31536000"
 
@@ -119,6 +122,7 @@ sudo systemctl enable caddy >/dev/null 2>&1
 sudo systemctl reload caddy 2>/dev/null || sudo systemctl restart caddy
 sleep 2
 curl -fsS -o /dev/null -w "site %{http_code}\n" "https://${DOMAIN}/" --resolve "${DOMAIN}:443:127.0.0.1"
+curl -fsS -o /dev/null -w "origin %{http_code}\n" "https://${ORIGIN}/" --resolve "${ORIGIN}:443:127.0.0.1"
 systemctl is-active caddy
 # The new release is serving: drop the previous one and the upload.
 sudo rm -rf "$APP.old"
