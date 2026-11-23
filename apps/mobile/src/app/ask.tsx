@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -15,6 +14,7 @@ import {
   View,
   type ScrollViewInstance,
 } from 'react-native';
+import { useKeyboardHeight } from '@/lib/keyboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -111,6 +111,8 @@ function Thinking() {
 export default function AskScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  // The input sits directly on the keyboard: its height lifts the screen, and the home-indicator inset is dropped while it is open.
+  const keyboard = useKeyboardHeight();
   const { session } = useData();
   const userId = isDemo ? null : (session?.userId ?? null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -173,10 +175,16 @@ export default function AskScreen() {
     }
   };
 
+  // Keep the newest message in view when the keyboard opens or closes (the list has just been resized).
+  useEffect(() => {
+    const id = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80);
+    return () => clearTimeout(id);
+  }, [keyboard]);
+
   const canSend = !!draft.trim() && !busy;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.groupedBackground }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View style={{ flex: 1, backgroundColor: c.groupedBackground, paddingBottom: keyboard }}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.outline, backgroundColor: c.groupedBackground }]}>
         <View style={styles.headerInner}>
           <Pressable
@@ -212,7 +220,11 @@ export default function AskScreen() {
         </View>
       </View>
 
-      <ScrollView ref={scroll} contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scroll}
+        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}>
         {messages.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.row}>
@@ -279,7 +291,7 @@ export default function AskScreen() {
         {busy ? <Thinking /> : null}
       </ScrollView>
 
-      <View style={[styles.composer, { paddingBottom: insets.bottom + 10, borderTopColor: c.outline, backgroundColor: c.groupedBackground }]}>
+      <View style={[styles.composer, { paddingBottom: (keyboard > 0 ? 0 : insets.bottom) + 10, borderTopColor: c.outline, backgroundColor: c.groupedBackground }]}>
         <View style={styles.composerInner}>
           <TextInput
             value={draft}
@@ -309,7 +321,7 @@ export default function AskScreen() {
           </Pressable>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
