@@ -14,7 +14,6 @@ import {
   View,
   type ScrollViewInstance,
 } from 'react-native';
-import { useKeyboardHeight } from '@/lib/keyboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { friendly, isDemo, supabase } from '@/lib/api';
 import { clearChat, contextForServer, loadChat, saveChat, type ChatMessage } from '@/lib/chat-history';
 import { confirm } from '@/lib/confirm';
+import { useKeyboard } from '@/lib/keyboard';
 import { useData } from '@/lib/data';
 import { BackChevron } from '@/ui/icons';
 import { Sticker } from '@/ui/sticker';
@@ -111,8 +111,13 @@ function Thinking() {
 export default function AskScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  // The input sits directly on the keyboard: its height lifts the screen, and the home-indicator inset is dropped while it is open.
-  const keyboard = useKeyboardHeight();
+  // The input sits directly on the keyboard. Native: the keyboard's height lifts the screen. Web: the screen is fitted
+  // to the visible area above the keyboard (see lib/keyboard.ts). The home-indicator inset is dropped while it's open.
+  const keyboard = useKeyboard();
+  const keyboardOpen = keyboard.height > 0 || keyboard.viewport !== null;
+  const screenStyle = keyboard.viewport
+    ? { height: keyboard.viewport.height, transform: [{ translateY: keyboard.viewport.top }] }
+    : { flex: 1, paddingBottom: keyboard.height };
   const { session } = useData();
   const userId = isDemo ? null : (session?.userId ?? null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -175,16 +180,16 @@ export default function AskScreen() {
     }
   };
 
-  // Keep the newest message in view when the keyboard opens or closes (the list has just been resized).
+  // Keep the newest message in view when the keyboard opens, closes or moves (the list has just been resized).
   useEffect(() => {
     const id = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80);
     return () => clearTimeout(id);
-  }, [keyboard]);
+  }, [keyboard.height, keyboard.viewport?.height]);
 
   const canSend = !!draft.trim() && !busy;
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.groupedBackground, paddingBottom: keyboard }}>
+    <View style={[{ backgroundColor: c.groupedBackground, overflow: 'hidden' }, screenStyle]}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.outline, backgroundColor: c.groupedBackground }]}>
         <View style={styles.headerInner}>
           <Pressable
@@ -291,7 +296,7 @@ export default function AskScreen() {
         {busy ? <Thinking /> : null}
       </ScrollView>
 
-      <View style={[styles.composer, { paddingBottom: (keyboard > 0 ? 0 : insets.bottom) + 10, borderTopColor: c.outline, backgroundColor: c.groupedBackground }]}>
+      <View style={[styles.composer, { paddingBottom: keyboardOpen ? 8 : insets.bottom + 10, borderTopColor: c.outline, backgroundColor: c.groupedBackground }]}>
         <View style={styles.composerInner}>
           <TextInput
             value={draft}

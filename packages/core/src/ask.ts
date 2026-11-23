@@ -306,17 +306,38 @@ export async function ask(history: { role: 'user' | 'assistant'; content: string
 }
 
 /** Gemini through Google's OpenAI-compatible endpoint. */
+/** Groq, the chatbot's default provider (OpenAI-compatible). https://console.groq.com/docs/models */
+export const GROQ_OPENAI_URL = 'https://api.groq.com/openai/v1';
+/** A production model on Groq with tool calling. Override with the GROQ_MODEL secret. */
+export const GROQ_CHAT_MODEL = 'openai/gpt-oss-20b';
+/**
+ * GPT-OSS models think before answering. Keep that short and out of the reply, and leave room for it in the
+ * token limit so the answer itself isn't cut off. (The answer is still capped by the prompt and guardAnswer.)
+ */
+export const GROQ_OPTIONS = { maxTokens: 1024, extra: { reasoning_effort: 'low', include_reasoning: false } } as const;
+
+/** Gemini, the previous provider; used only if no Groq key is set. */
 export const GEMINI_OPENAI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
 export const GEMINI_CHAT_MODEL = 'gemini-3.5-flash-lite';
 
 /** A ChatFn for any OpenAI-compatible endpoint (Gemini, Hugging Face router, Groq, OpenRouter, …). */
-export function openAICompatible(opts: { baseUrl: string; apiKey: string; model: string; timeoutMs?: number; fetchFn?: typeof fetch }): ChatFn {
+export function openAICompatible(opts: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  timeoutMs?: number;
+  fetchFn?: typeof fetch;
+  /** Token limit for the reply (default 400). */
+  maxTokens?: number;
+  /** Provider-specific request fields (e.g. Groq's reasoning_effort). */
+  extra?: Readonly<Record<string, unknown>>;
+}): ChatFn {
   const doFetch = opts.fetchFn ?? fetch;
   return async (messages, tools) => {
     const res = await doFetch(`${opts.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${opts.apiKey}` },
-      body: JSON.stringify({ model: opts.model, messages, tools, tool_choice: 'auto', temperature: 0.2, max_tokens: 400 }),
+      body: JSON.stringify({ model: opts.model, messages, tools, tool_choice: 'auto', temperature: 0.2, max_tokens: opts.maxTokens ?? 400, ...opts.extra }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 25_000),
     });
     if (!res.ok) throw new Error(`AI provider answered ${res.status}`);

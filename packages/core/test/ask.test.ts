@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ask, openAICompatible, runTool, type AskData, type ChatFn } from '../src/ask.ts';
+import { ask, GROQ_CHAT_MODEL, GROQ_OPENAI_URL, GROQ_OPTIONS, openAICompatible, runTool, type AskData, type ChatFn } from '../src/ask.ts';
 import type { Transaction } from '../src/types.ts';
 
 let n = 0;
@@ -136,6 +136,30 @@ describe('openAICompatible', () => {
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://example.test/v1/chat/completions');
     expect(JSON.parse(init.body as string)).toMatchObject({ model: 'm', tool_choice: 'auto' });
+  });
+
+  it('sends Groq the reasoning settings and a bigger token limit', async () => {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'ok' } }] }), { status: 200 }));
+    const chat = openAICompatible({ baseUrl: GROQ_OPENAI_URL, apiKey: 'gsk', model: GROQ_CHAT_MODEL, ...GROQ_OPTIONS, fetchFn: fetchFn as unknown as typeof fetch });
+    await chat([{ role: 'user', content: 'x' }], [] as never);
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.groq.com/openai/v1/chat/completions');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer gsk');
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      model: 'openai/gpt-oss-20b',
+      tool_choice: 'auto',
+      max_tokens: 1024,
+      reasoning_effort: 'low',
+      include_reasoning: false,
+    });
+  });
+
+  it('keeps the plain request for other providers', async () => {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'ok' } }] }), { status: 200 }));
+    await openAICompatible({ baseUrl: 'https://x/v1', apiKey: 'k', model: 'm', fetchFn: fetchFn as unknown as typeof fetch })([], [] as never);
+    const body = JSON.parse((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body.max_tokens).toBe(400);
+    expect(body).not.toHaveProperty('reasoning_effort');
   });
 
   it('surfaces provider errors', async () => {

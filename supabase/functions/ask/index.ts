@@ -13,12 +13,23 @@
 // Gullu, the chatbot. Loads the caller's own data with their token (row-level security applies), then lets the AI
 // model answer by calling the tools in packages/core/src/ask.ts. No raw SMS is loaded or sent.
 //
-// Provider: Gemini 3.5 Flash-Lite through Google's OpenAI-compatible endpoint, using the GEMINI_API_KEY secret.
-// Any other OpenAI-compatible provider can replace it with AI_BASE_URL + AI_API_KEY + AI_MODEL.
-// Without a key it answers 503 "not switched on yet".
+// Provider, first one configured wins:
+//   1. AI_BASE_URL + AI_API_KEY + AI_MODEL   any OpenAI-compatible provider
+//   2. GROQ_API_KEY (+ optional GROQ_MODEL)  Groq, default openai/gpt-oss-20b
+//   3. GEMINI_API_KEY                        Gemini 3.5 Flash-Lite (the old provider, kept as a fallback)
+// Without a key it answers 503 "not switched on yet". Only the chatbot uses this; SMS categorising still uses Gemini.
 
 import { checkQuestion, prepareHistory, signAnswer, verifyAnswer } from '../../../packages/core/src/guard.ts';
-import { ask, GEMINI_CHAT_MODEL, GEMINI_OPENAI_URL, openAICompatible, type AskData } from '../../../packages/core/src/ask.ts';
+import {
+  ask,
+  GEMINI_CHAT_MODEL,
+  GEMINI_OPENAI_URL,
+  GROQ_CHAT_MODEL,
+  GROQ_OPENAI_URL,
+  GROQ_OPTIONS,
+  openAICompatible,
+  type AskData,
+} from '../../../packages/core/src/ask.ts';
 import type { Jar, JarEntry } from '../../../packages/core/src/jars.ts';
 import type { Budget } from '../../../packages/core/src/stats.ts';
 import type { Transaction } from '../../../packages/core/src/types.ts';
@@ -29,12 +40,20 @@ const TXN_COLUMNS =
 
 const MAX_BODY_BYTES = 16 * 1024;
 
-function provider() {
+function provider(): Parameters<typeof openAICompatible>[0] | null {
   const custom = Deno.env.get('AI_API_KEY');
   if (custom) {
     const baseUrl = Deno.env.get('AI_BASE_URL');
     const model = Deno.env.get('AI_MODEL');
     return baseUrl && model ? { baseUrl, apiKey: custom, model } : null;
+  }
+  const groq = Deno.env.get('GROQ_API_KEY');
+  if (groq) {
+    const model = Deno.env.get('GROQ_MODEL') || GROQ_CHAT_MODEL;
+    // Reasoning settings only apply to the GPT-OSS models; other Groq models get a plain request.
+    return model.startsWith('openai/gpt-oss')
+      ? { baseUrl: GROQ_OPENAI_URL, apiKey: groq, model, ...GROQ_OPTIONS }
+      : { baseUrl: GROQ_OPENAI_URL, apiKey: groq, model };
   }
   const gemini = Deno.env.get('GEMINI_API_KEY');
   return gemini ? { baseUrl: GEMINI_OPENAI_URL, apiKey: gemini, model: GEMINI_CHAT_MODEL } : null;
