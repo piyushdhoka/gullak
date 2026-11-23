@@ -81,6 +81,25 @@ describe('summarize', () => {
     expect(s.biggest?.amount).toBe(700);
   });
 
+  it('lists every payment that ties for the biggest, newest first', () => {
+    const nov = { year: 2026, month: 10 };
+    const tie = summarize(
+      [
+        t('2026-11-03T10:00:00', 100, { merchant: 'Uber' }),
+        t('2026-11-05T10:00:00', 100, { merchant: 'Zomato' }),
+        t('2026-11-06T10:00:00', 40, { merchant: 'Chai' }),
+        t('2026-11-07T10:00:00', 500, { merchant: 'Salary', direction: 'credit' }),
+        t('2026-11-08T10:00:00', 900, { merchant: 'Hidden', hidden: true }),
+      ],
+      nov,
+      NOW,
+    );
+    expect(tie.biggestAll.map((x) => x.merchant)).toEqual(['Zomato', 'Uber']);
+    expect(tie.biggest?.amount).toBe(100);
+    expect(s.biggestAll.map((x) => x.amount)).toEqual([700]);
+    expect(summarize([], nov, NOW).biggestAll).toEqual([]);
+  });
+
   it('a past month uses all its days and has no projection', () => {
     const oct = summarize(data, { year: 2026, month: 9 }, NOW);
     expect(oct.daysCounted).toBe(31);

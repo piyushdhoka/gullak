@@ -65,9 +65,15 @@ export default function SummaryScreen() {
           <Subscriptions />
           <Categories s={s} />
           <Merchants s={s} />
-          {s.biggest ? (
-            <Section header="Biggest payment">
-              <TxnRow t={s.biggest} showTime={false} />
+          {s.biggestAll.length ? (
+            // Every payment that ties for the biggest amount, not just the first one found.
+            <Section header={s.biggestAll.length > 1 ? 'Biggest payments' : 'Biggest payment'}>
+              {s.biggestAll.slice(0, BIGGEST_SHOWN).map((t) => (
+                <TxnRow key={t.id} t={t} showTime={false} />
+              ))}
+              {s.biggestAll.length > BIGGEST_SHOWN ? (
+                <Row title={`${s.biggestAll.length - BIGGEST_SHOWN} more of ${money(s.biggestAll[0].amount)}`} chevron onPress={() => router.push('/activity')} />
+              ) : null}
             </Section>
           ) : null}
         </>
@@ -75,6 +81,9 @@ export default function SummaryScreen() {
     </Screen>
   );
 }
+
+/** Payments shown under "Biggest payments" when several tie; the rest are summed up in one row. */
+const BIGGEST_SHOWN = 5;
 
 function greeting(h: number) {
   if (h < 5) return 'Up late?';

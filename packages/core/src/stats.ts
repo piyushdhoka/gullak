@@ -72,6 +72,8 @@ export interface MonthSummary {
   /** Spend per day of month, index 0 = day 1. */
   daily: number[];
   biggest: Transaction | null;
+  /** Every payment that ties for the biggest amount (e.g. Uber ₹100 and Zomato ₹100), newest first. */
+  biggestAll: Transaction[];
 }
 
 export function summarize(all: Transaction[], month: Month, now: Date = new Date()): MonthSummary {
@@ -124,6 +126,11 @@ export function summarize(all: Transaction[], month: Month, now: Date = new Date
     daily[new Date(t.occurred_at).getDate() - 1] += t.amount;
     if (!biggest || t.amount > biggest.amount) biggest = t;
   }
+  // Compare in paise so 99.999999 and 100 count as the same amount.
+  const top = biggest ? Math.round(biggest.amount * 100) : null;
+  const biggestAll = top === null ? [] : debits
+    .filter((t) => Math.round(t.amount * 100) === top)
+    .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
 
   const byCategory = [...cat.entries()]
     .map(([category, v]) => ({
@@ -155,6 +162,7 @@ export function summarize(all: Transaction[], month: Month, now: Date = new Date
     topMerchants,
     daily: daily.map(round2),
     biggest,
+    biggestAll,
   };
 }
 
