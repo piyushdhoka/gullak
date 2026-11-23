@@ -45,6 +45,7 @@ example
 /android
 /apps/mobile/ios
 /apps/mobile/android
+/apps/mobile/modules/*/android/build
 
 # secrets
 .env
