@@ -8,7 +8,7 @@ import { useData } from '@/lib/data';
 import { fullDate, signedMoney } from '@/lib/format';
 import { copyText, enablePush, getConfig, hasSubscription, isStandalone, pushState, type PushState } from '@/lib/push';
 import { friendly, ingestUrl, supabase } from '@/lib/api';
-import { askSmsPermission, FIRST_IMPORT_MONTHS, hasSmsPermission, smsMark, smsSupported, syncSms, type SyncResult } from '@/lib/sms';
+import { askSmsPermission, hasSmsPermission, smsMark, smsSupported, startSms, syncSms, type SyncResult } from '@/lib/sms';
 import { useClientValue } from '@/lib/use-client';
 import { Badge, Button, Card } from '@/ui/controls';
 import { PixelBar, Sticker } from '@/ui/sticker';
@@ -39,7 +39,7 @@ export default function SetupScreen() {
       <Text variant="subheadline" color="secondaryLabel" style={styles.intro}>
         {web
           ? 'Every bank SMS on your iPhone becomes a categorised payment here within seconds. Do these steps once.'
-          : 'Gullak reads the bank SMS on this phone and turns every payment into a categorised entry. Do this once.'}
+          : 'From the moment you turn it on, every bank payment SMS on this phone becomes a categorised entry. Do this once.'}
       </Text>
       {mode === 'demo' ? (
         <Card style={styles.card}>
@@ -428,12 +428,15 @@ function useSmsStep() {
       return;
     }
     setDenied(false);
+    if (!mark) {
+      // From now on only: SMS already on the phone are never read.
+      setMark(await startSms(userId));
+      return;
+    }
     setBusy(true);
     setProgress(null);
     try {
-      const from = new Date();
-      from.setMonth(from.getMonth() - FIRST_IMPORT_MONTHS);
-      const r = await syncSms(userId, { fromMs: from.getTime(), onProgress: setProgress });
+      const r = await syncSms(userId, { onProgress: setProgress });
       setResult(
         r.sent
           ? `Done: ${r.saved} new payment${r.saved === 1 ? '' : 's'}${r.duplicate ? `, ${r.duplicate} already here` : ''}. New payees wait in Review.`
@@ -460,14 +463,14 @@ function SmsStep({ mark, denied, busy, progress, result, run, live }: ReturnType
         ? `Sending… ${progress?.sent ?? 0} SMS so far, ${progress?.saved ?? 0} new payments.`
         : (result ??
           (mark
-            ? 'Done. New bank SMS are picked up whenever you open Gullak.'
-            : `Imports the last ${FIRST_IMPORT_MONTHS} months. Only SMS from bank sender IDs (like VM-HDFCBK) about payments are sent; personal messages never leave this phone.`));
+            ? 'On. New bank SMS are sent to Gullak whenever you open it.'
+            : 'Records bank payment SMS from now on; SMS already on this phone are not read. Only SMS from bank sender IDs (like VM-HDFCBK) about payments are sent; personal messages never leave this phone.'));
   return (
     <Step n={1} title="Read bank SMS" state={mark ? 'done' : 'current'}>
       <Note color={denied ? 'red' : 'secondaryLabel'}>{note}</Note>
       {denied ? <Button title="Open Settings" kind="plain" onPress={() => Linking.openSettings()} style={styles.plain} /> : null}
       <Button
-        title={mark ? 'Check for New SMS' : `Import Last ${FIRST_IMPORT_MONTHS} Months`}
+        title={mark ? 'Check for New SMS' : 'Turn On'}
         kind={mark ? 'tinted' : 'filled'}
         onPress={run}
         loading={busy}

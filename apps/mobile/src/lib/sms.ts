@@ -12,19 +12,26 @@ import { supabase } from './api';
 /** Messages per request: the server checks every payee (sometimes with an AI call), so requests stay short. */
 const BATCH = 50;
 const PAGE = 500;
-/** The server keeps the phone's time for SMS up to 2 days old; older ones go as an import, silently. */
+/** The server keeps the phone's time for SMS up to 2 days old; older ones (app not opened for days) go as an
+ * import, silently, so they keep their real dates. */
 const RECENT_MS = 2 * 86_400_000;
-export const FIRST_IMPORT_MONTHS = 6;
 
 /** False on web, iPhone and Expo Go (no native SMS reader there). */
 export const smsSupported = Platform.OS === 'android' && SmsInbox != null;
 
 const markKey = (userId: string) => `gullak.sms.since.${userId}`;
 
-/** Time (ms) of the newest SMS read so far, or null before the first import. */
+/** Time (ms) of the newest SMS read so far, or null while SMS capture is off. */
 export async function smsMark(userId: string): Promise<number | null> {
   const v = await AsyncStorage.getItem(markKey(userId));
   return v ? Number(v) : null;
+}
+
+/** Turns capture on from this moment: SMS already on the phone are never read or sent. */
+export async function startSms(userId: string): Promise<number> {
+  const mark = (await smsMark(userId)) ?? Date.now();
+  await AsyncStorage.setItem(markKey(userId), String(mark));
+  return mark;
 }
 
 export function hasSmsPermission(): Promise<boolean> {
@@ -47,22 +54,23 @@ export interface SyncResult {
 let running: Promise<SyncResult> | null = null;
 
 /**
- * Sends bank SMS that arrived after the last sync. The first run starts `fromMs` back instead.
- * Resumable: the mark moves forward after every batch, so an interrupted import picks up where it stopped.
- * One run at a time (opening the app and tapping Import can't send the same SMS twice).
+ * Sends bank SMS that arrived after the last sync (never before startSms). Resumable: the mark moves forward
+ * after every batch, so an interrupted run picks up where it stopped. One run at a time (opening the app and
+ * tapping Check can't send the same SMS twice).
  */
-export function syncSms(userId: string, opts: { fromMs?: number; onProgress?: (r: SyncResult) => void } = {}): Promise<SyncResult> {
+export function syncSms(userId: string, opts: { onProgress?: (r: SyncResult) => void } = {}): Promise<SyncResult> {
   running ??= run(userId, opts).finally(() => {
     running = null;
   });
   return running;
 }
 
-async function run(userId: string, { fromMs, onProgress }: { fromMs?: number; onProgress?: (r: SyncResult) => void }) {
+async function run(userId: string, { onProgress }: { onProgress?: (r: SyncResult) => void }) {
   if (!SmsInbox) throw new Error('Reading SMS needs the installed Gullak app.');
   const total: SyncResult = { sent: 0, saved: 0, duplicate: 0 };
   // shortcut: two SMS in the same millisecond across a page edge would skip the second; fine for bank alerts.
-  let since = (await smsMark(userId)) ?? fromMs ?? Date.now() - RECENT_MS;
+  let since = await smsMark(userId);
+  if (since === null) return total;
   for (;;) {
     const page = await SmsInbox.readInbox(since, PAGE);
     if (!page.length) break;
@@ -77,8 +85,6 @@ async function run(userId: string, { fromMs, onProgress }: { fromMs?: number; on
     await AsyncStorage.setItem(markKey(userId), String(since));
     if (page.length < PAGE) break;
   }
-  // Also marks a first import that found nothing, so the app checks for new SMS on every open from now on.
-  await AsyncStorage.setItem(markKey(userId), String(since));
   return total;
 }
 

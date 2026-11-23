@@ -8,7 +8,7 @@ import { useData } from '@/lib/data';
 import { hasSmsPermission, smsMark, smsSupported, syncSms } from '@/lib/sms';
 import { bodyFont, useColors } from '@/ui/theme';
 
-/** Android: send new bank SMS whenever the app opens or comes back, once the first import was done in Setup. */
+/** Android: send new bank SMS whenever the app opens or comes back, once SMS capture is turned on in Setup. */
 function useSmsAutoSync() {
   const { session, refresh } = useData();
   const userId = session?.userId;
