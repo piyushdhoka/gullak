@@ -144,8 +144,6 @@
 .tile,
 .faqItem,
 .installCard,
-.stepCard,
-.freeCard,
 .storyStep,
 .revealCard,
 .txnCard,
@@ -410,10 +408,6 @@
   text-underline-offset: 4px;
   text-decoration-color: var(--clay);
   padding: 10px 2px;
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  touch-action: manipulation;
 }
 
 .qrCard {
@@ -1161,36 +1155,24 @@
   outline-color: #ffd866;
 }
 
-.footerCols {
+.footerLinks {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
   display: flex;
-  gap: 40px;
-}
-
-.footerCol {
-  display: flex;
-  flex-direction: column;
-  min-width: 130px;
+  flex-wrap: wrap;
+  gap: 6px 26px;
   font-size: 15px;
   font-weight: 600;
 }
 
-.footerHead {
-  font-family: var(--pixel);
-  font-size: 22px;
-  line-height: 1;
-  margin-bottom: 6px;
-}
-
-.footerCol a {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
+.footerLinks a {
   text-decoration: none;
-  touch-action: manipulation;
+  padding: 6px 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .footerCol a:hover {
+  .footerLinks a:hover {
     text-decoration: underline;
     text-decoration-thickness: 2px;
     text-underline-offset: 4px;
@@ -1200,15 +1182,12 @@
 .footerMaker {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 16px 20px 0;
+  padding: 8px 20px 0;
   font-size: 15px;
   font-weight: 500;
 }
 
 .footerMaker a {
-  display: inline-block;
-  padding: 12px 2px;
-  touch-action: manipulation;
   font-weight: 700;
   text-underline-offset: 4px;
 }
@@ -2349,212 +2328,6 @@
   line-height: 0;
 }
 
-/* ---------- home: steps row, stats, features, pricing, closing call to action ---------- */
-
-.howSteps,
-.stats,
-.featureBlock,
-.free,
-.faqBlock,
-.closing {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 72px 20px 0;
-}
-
-.stepCards {
-  list-style: none;
-  margin: 36px 0 0;
-  padding: 0;
-  display: grid;
-  gap: 20px;
-}
-
-@media (min-width: 860px) {
-  .stepCards {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 24px;
-  }
-}
-
-.stepCard {
-  min-width: 0;
-  padding: 24px 20px;
-  border-radius: 20px;
-  background: var(--card);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.stepNum {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--clay);
-  color: var(--on-clay);
-  border: 2px solid var(--outline);
-  font-family: var(--pixel);
-  font-size: 28px;
-  line-height: 1;
-}
-
-.stepDemo {
-  margin-top: auto;
-  padding-top: 12px;
-}
-
-.sectionCta {
-  margin-top: 32px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 22px;
-}
-
-.statRow {
-  margin: 0;
-  display: grid;
-  gap: 0;
-  border-top: 2px solid var(--outline);
-  border-bottom: 2px solid var(--outline);
-}
-
-@media (min-width: 700px) {
-  .statRow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .stat + .stat {
-    border-left: 2px solid var(--outline);
-  }
-}
-
-.stat {
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  gap: 6px;
-  padding: 26px 12px;
-  text-align: center;
-}
-
-.stat + .stat {
-  border-top: 2px solid var(--hair);
-}
-
-@media (min-width: 700px) {
-  .stat + .stat {
-    border-top: 0;
-  }
-}
-
-.stat dt {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.stat dd {
-  margin: 0;
-  font-family: var(--pixel);
-  font-size: clamp(56px, 9vw, 88px);
-  line-height: 0.9;
-  color: var(--clay);
-}
-
-.featureBlock > :nth-child(2) {
-  margin-top: 36px;
-}
-
-.free {
-  display: flex;
-  justify-content: center;
-}
-
-.freeCard {
-  width: 100%;
-  max-width: 460px;
-  padding: 28px 24px;
-  border-radius: 22px;
-  background: var(--card);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.freeTag {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.freeTitle {
-  font-family: var(--pixel);
-  font-weight: 400;
-  font-size: 84px;
-  line-height: 0.9;
-  color: var(--clay);
-}
-
-.freeList {
-  list-style: none;
-  margin: 8px 0 14px;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-  font-weight: 500;
-}
-
-.freeList li {
-  position: relative;
-  padding-left: 26px;
-}
-
-.freeList li::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 0.42em;
-  width: 12px;
-  height: 7px;
-  border-left: 3px solid var(--sprout);
-  border-bottom: 3px solid var(--sprout);
-  transform: rotate(-45deg);
-}
-
-.faqBlock .faq {
-  margin: 32px auto 0;
-}
-
-.closing {
-  padding: 88px 20px 96px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.closing .introText {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.closing .getIt {
-  margin-top: 30px;
-}
-
-.closing .onTouch {
-  justify-content: center;
-}
-
 /* ---------- page enter: top-to-bottom blur-fade (after Magic UI "BlurFade") ----------
    Plays once when a page mounts: each block fades in and drops ~10px, ~60ms after the one above it.
    Text also un-blurs (blur is only used on text, never on big cards, so it stays cheap on phones).
@@ -2632,8 +2405,4 @@ main > section:nth-child(n + 3) {
   main > section {
     animation: none !important;
   }
-}
-
-.navBrand {
-  min-height: 44px;
 }
