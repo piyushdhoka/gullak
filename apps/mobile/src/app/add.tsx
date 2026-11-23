@@ -2,14 +2,17 @@
 // A calculator-style sheet: a huge pixel amount, a keypad, a tile grid of categories, one Save.
 
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import type { ReceiptGuess } from '@gullak/core/receipt.ts';
+import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CategoryGrid, groupAmount, Keypad, PillChoices, typeAmount, type AmountKey } from '@/components/add-parts';
+import { ReceiptScan } from '@/components/receipt-scan';
 import { guessFromSms } from '@/components/sms-guess';
 import { CATEGORIES } from '@/lib/categories';
 import { useData } from '@/lib/data';
+import { takePendingReceipt } from '@/lib/receipt-ocr';
 import { dayLabel, money } from '@/lib/format';
 import { Button, Card, Field, SegmentedControl } from '@/ui/controls';
 import { Screen } from '@/ui/screen';
@@ -41,12 +44,25 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6].map((n) => ({
   label: n === 0 ? 'Today' : n === 1 ? 'Yesterday' : dayLabel(daysBack(n)),
 }));
 
+/** "When" value for a receipt dated more than 6 days ago (it gets its own pill). */
+const RECEIPT_DAY = 99;
+
+/** A receipt's printed date (YYYY-MM-DD) and time (HH:MM) as a local Date; noon when there's no time. */
+function receiptWhen(date: string, time: string | null) {
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, min] = time ? time.split(':').map(Number) : [12, 0];
+  return new Date(y, m - 1, d, h, min);
+}
+
 export default function AddScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { addManual, inbox, dismissSms } = useData();
+  const { addManual, inbox, dismissSms, transactions } = useData();
   // Opened from "Add as payment" on an SMS Gullak couldn't read: start from what the SMS seems to say.
-  const { sms: smsId } = useLocalSearchParams<{ sms?: string }>();
+  // Opened from the camera button on home (?receipt=1): the photo is waiting to be read.
+  const { sms: smsId, receipt } = useLocalSearchParams<{ sms?: string; receipt?: string }>();
+  const [receiptFile] = useState(() => (receipt ? takePendingReceipt() : null));
+  const [fromReceipt, setFromReceipt] = useState<ReceiptGuess | null>(null);
   const sms = smsId ? inbox.find((m) => m.id === smsId) : undefined;
   const [guess] = useState(() => (sms ? guessFromSms(sms.body) : null));
   const smsDay = sms ? Math.round((startOfDay(new Date()) - startOfDay(new Date(sms.received_at))) / 86_400_000) : -1;
@@ -62,6 +78,52 @@ export default function AddScreen() {
   const value = parseAmount(amount);
   const valid = value > 0 && value <= 1e8;
   const options = direction === 'debit' ? SPEND : RECEIVE;
+
+  // A receipt older than the last 7 days gets its own "When" pill.
+  const receiptDate = fromReceipt?.date ? receiptWhen(fromReceipt.date, fromReceipt.time) : null;
+  const receiptDay = receiptDate ? Math.round((startOfDay(new Date()) - startOfDay(receiptDate)) / 86_400_000) : -1;
+  // Shown first, so it's visible without scrolling the row.
+  const dayOptions = receiptDate && receiptDay > 6 ? [{ value: RECEIPT_DAY, label: dayLabel(receiptDate) }, ...DAYS] : DAYS;
+
+  const applyReceipt = (g: ReceiptGuess) => {
+    setFromReceipt(g);
+    setDirection('debit');
+    if (g.amount !== null) setAmount(String(g.amount));
+    if (g.merchant) setPayee(g.merchant);
+    if (g.category && (SPEND as readonly string[]).includes(g.category)) setCategory(g.category);
+    if (g.date) {
+      const days = Math.round((startOfDay(new Date()) - startOfDay(receiptWhen(g.date, g.time))) / 86_400_000);
+      setDay(days >= 0 && days <= 6 ? days : RECEIPT_DAY);
+    }
+    setNote((n) => n || (g.paidBy ? `From receipt (paid by ${g.paidBy === 'upi' ? 'UPI' : g.paidBy})` : 'From receipt'));
+  };
+
+  /** When the payment will be saved as happening. */
+  const whenFor = (d: number) => {
+    if (d === RECEIPT_DAY && receiptDate) return receiptDate;
+    // Same day as the SMS / receipt: use its exact time.
+    if (sms && d === smsDay) return new Date(sms.received_at);
+    if (receiptDate && d === receiptDay && fromReceipt?.time) return receiptDate;
+    const when = daysBack(d);
+    if (d > 0) when.setHours(12, 0, 0, 0);
+    return when;
+  };
+
+  // A receipt paid by UPI or card usually reaches Gullak by bank SMS too. Warn before counting it twice.
+  const duplicate = useMemo(() => {
+    if (!fromReceipt || !valid) return null;
+    const at = whenFor(day).getTime();
+    return (
+      transactions.find(
+        (t) =>
+          !t.hidden &&
+          t.direction === direction &&
+          Math.abs(Number(t.amount) - value) < 0.01 &&
+          Math.abs(new Date(t.occurred_at).getTime() - at) <= 36 * 3_600_000,
+      ) ?? null
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromReceipt, valid, value, day, direction, transactions]);
   const shown = groupAmount(amount);
   const amountSize = shown.length <= 6 ? 60 : shown.length <= 9 ? 48 : 38;
 
@@ -76,10 +138,7 @@ export default function AddScreen() {
     setBusy(true);
     setError(null);
     try {
-      let when = daysBack(day);
-      if (day > 0) when.setHours(12, 0, 0, 0);
-      // Same day as the SMS: use its exact time.
-      if (sms && day === smsDay) when = new Date(sms.received_at);
+      const when = whenFor(day);
       await addManual({ amount: value, category, direction, payee, note, occurredAt: when });
       // Now it's a payment, the SMS no longer needs to wait in "Not recognised".
       if (sms) await dismissSms(sms.id).catch(() => {});
@@ -94,6 +153,11 @@ export default function AddScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen title={sms ? 'Add from SMS' : 'Add a payment'} largeTitle={false} back="Cancel" tabBar={false}>
+        {sms ? null : (
+          <View style={styles.pad}>
+            <ReceiptScan initialFile={receiptFile} onGuess={applyReceipt} />
+          </View>
+        )}
         <View style={styles.pad}>
           {sms ? (
             <View style={[styles.smsNote, { backgroundColor: c.fillTertiary, borderColor: c.separator }]}>
@@ -159,7 +223,7 @@ export default function AddScreen() {
         <Text variant="footnote" weight="600" color="secondaryLabel" style={styles.head} accessibilityRole="header">
           When
         </Text>
-        <PillChoices label="When" options={DAYS} value={day} onChange={setDay} />
+        <PillChoices label="When" options={dayOptions} value={day} onChange={setDay} />
         <View style={{ height: 14 }} />
 
         <View>
@@ -184,6 +248,13 @@ export default function AddScreen() {
           { paddingBottom: insets.bottom + 12, backgroundColor: c.chrome, borderTopColor: c.separator },
         ]}>
         <View style={styles.saveInner}>
+          {duplicate ? (
+            <Text variant="footnote" color="secondaryLabel" align="center" style={{ marginBottom: 8 }} accessibilityLiveRegion="polite">
+              Already in Gullak? {money(Number(duplicate.amount), { whole: Number.isInteger(Number(duplicate.amount)) })}
+              {duplicate.merchant || duplicate.payee ? ` to ${duplicate.merchant || duplicate.payee}` : ''} ({dayLabel(new Date(duplicate.occurred_at))}).
+              Save only if this is a different payment.
+            </Text>
+          ) : null}
           {error ? (
             <Text variant="footnote" color="red" align="center" style={{ marginBottom: 8 }} accessibilityLiveRegion="assertive">
               {error}

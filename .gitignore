@@ -5,6 +5,8 @@ node_modules/
 
 # Expo
 .expo/
+# Receipt scanner files, copied from node_modules at build time (apps/mobile/scripts/copy-ocr.mjs)
+apps/mobile/public/ocr/
 dist/
 web-build/
 expo-env.d.ts

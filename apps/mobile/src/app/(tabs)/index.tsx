@@ -10,6 +10,7 @@ import { CategoryTile, MerchantTile, TxnRow } from '@/components/txn-row';
 import { jarPlan } from '@gullak/core/jars.ts';
 import { categoryMeta } from '@/lib/categories';
 import { useData } from '@/lib/data';
+import { canScanReceipts, pickReceiptPhoto, setPendingReceipt } from '@/lib/receipt-ocr';
 import { pageMetadata } from '@/lib/seo';
 import { money, monthName, shortMonth } from '@/lib/format';
 import {
@@ -98,7 +99,30 @@ function Greeting() {
           Your Gullak
         </Text>
       </View>
+      {canScanReceipts ? <ScanButton /> : null}
     </View>
+  );
+}
+
+/** Top right of home: opens the camera to scan a bill; the Add screen then reads it and fills itself in. */
+function ScanButton() {
+  const c = useColors();
+  const scan = () => {
+    // Opens the picker synchronously inside the tap (browsers only allow it from a tap).
+    pickReceiptPhoto({ camera: true }).then((file) => {
+      if (!file) return;
+      setPendingReceipt(file);
+      router.push('/add?receipt=1');
+    });
+  };
+  return (
+    <Pressable onPress={scan} accessibilityRole="button" accessibilityLabel="Scan a receipt" hitSlop={6}>
+      {({ pressed }) => (
+        <Sticker color={c.card} radius={14} pressed={pressed} style={styles.scanButton}>
+          <Glyph name="camera" size={26} color={c.tint} />
+        </Sticker>
+      )}
+    </Pressable>
   );
 }
 
@@ -524,6 +548,7 @@ const styles = StyleSheet.create({
   greetAvatar: { width: 54, height: 54, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   greetMascot: { width: 50, height: 50 },
   greetTitle: { fontSize: 32, lineHeight: 38 },
+  scanButton: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
   quick: { flexDirection: 'row', gap: 8, marginHorizontal: layout.inset, marginBottom: 16 },
   quickCell: { flex: 1, minWidth: 0 },
   quickCard: { paddingVertical: 12, paddingHorizontal: 10, gap: 2, minHeight: 92 },

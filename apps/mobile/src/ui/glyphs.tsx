@@ -31,6 +31,7 @@ export type GlyphName =
   | 'eyeOff'
   | 'question'
   | 'coin'
+  | 'camera'
   // jar goals
   | 'beach'
   | 'phone'
@@ -153,6 +154,11 @@ const GLYPHS: Record<GlyphName, Draw> = {
     f('M5 3.5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-6.2L8.5 20.5v-4H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z', i, o, 0),
     s('M9.8 8.3a2.3 2.3 0 1 1 3.3 2c-.6.3-1.1.8-1.1 1.4v.4', i, 1),
     d(12, 14.4, 1, i, 2),
+  ],
+  camera: (i, o) => [
+    f('M3.5 9a2 2 0 0 1 2-2h2.3l1.5-2.2h5.4L16.2 7h2.3a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z', i, o, 0),
+    c(12, 13, 3.7, i, 1),
+    d(17.4, 10, 0.95, i, 2),
   ],
   coin: (i, o) => [
     c(12, 12, 8.8, i, 0, o),
