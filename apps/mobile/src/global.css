@@ -102,15 +102,4 @@ input:-webkit-autofill:focus {
   }
 }
 
-/* Page-to-page crossfade (View Transitions). SiteLink starts a same-document transition for in-site links;
-   the at-rule covers full page loads in browsers that support cross-document transitions. Progressive only. */
-@media (prefers-reduced-motion: no-preference) {
-  @view-transition {
-    navigation: auto;
-  }
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 180ms;
-    animation-timing-function: ease-out;
-  }
-}
+

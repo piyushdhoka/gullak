@@ -39,21 +39,8 @@ function SiteLink({ href, className, children, label }: { href: Href & string; c
     // would bounce a visitor to sign-in. Loading "/" lets the server-rendered website home show.
     if (href === '/') return;
     e.preventDefault();
-    const go = () => router.push(href);
-    // Crossfade between pages where the browser supports View Transitions (skipped for reduced motion).
-    const doc = document as Document & { startViewTransition?: (update: () => Promise<void>) => unknown };
-    if (doc.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      doc.startViewTransition(
-        () =>
-          new Promise<void>((resolve) => {
-            go();
-            // Let React commit the new route before the browser captures the "after" snapshot.
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-          }),
-      );
-    } else {
-      go();
-    }
+    // A plain in-app navigation. (View Transitions were removed: on phones the full-page snapshot made clicks lag.)
+    router.push(href);
   };
   const current = typeof window !== 'undefined' && window.location.pathname === href;
   return (
@@ -118,7 +105,7 @@ function Site({
               <p className={styles.footerLine}>Every rupee, sorted on its own. Free for iPhone.</p>
             </div>
           </div>
-          <GetIt onClay />
+          <GetIt onClay hideSignIn />
         </div>
         <Band className={styles.footerBand} waves={24} dots={false} />
         <div className={styles.footerLinks}>
@@ -128,7 +115,6 @@ function Site({
             </SiteLink>
           ))}
           <SiteLink href="/install">Install</SiteLink>
-          <SiteLink href="/sign-in">Sign in</SiteLink>
         </div>
         <p className={styles.footerMaker}>
           Made by{' '}
@@ -581,7 +567,7 @@ function ShareIcon() {
  * How to get Gullak. Touch screens get "Add to iPhone" (→ /install) + "Sign in" (→ /sign-in); laptops get
  * a QR code and no sign-in. Chosen with CSS (pointer/hover media queries), so the first paint is already right.
  */
-function GetIt({ hideInstall, onClay }: { hideInstall?: boolean; onClay?: boolean }) {
+function GetIt({ hideInstall, hideSignIn, onClay }: { hideInstall?: boolean; hideSignIn?: boolean; onClay?: boolean }) {
   return (
     <div className={`${styles.getIt} ${onClay ? styles.getItOnClay : ''}`}>
       <div className={styles.onTouch}>
@@ -590,9 +576,11 @@ function GetIt({ hideInstall, onClay }: { hideInstall?: boolean; onClay?: boolea
             Add to iPhone
           </SiteLink>
         )}
-        <SiteLink href="/sign-in" className={styles.textButton}>
-          Already set up? Sign in
-        </SiteLink>
+        {hideSignIn ? null : (
+          <SiteLink href="/sign-in" className={styles.textButton}>
+            Already set up? Sign in
+          </SiteLink>
+        )}
       </div>
       <div className={styles.onDesktop}>
         <div className={styles.qrCard}>
