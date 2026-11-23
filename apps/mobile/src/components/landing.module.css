@@ -2362,3 +2362,23 @@
     animation-range: entry 30% entry 80%;
   }
 }
+
+/* App icon tiles (real merchant logos / category icons as inline SVG) replace the old emoji tiles. */
+.iconTile {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.fCat {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jarGlyph {
+  display: inline-flex;
+  vertical-align: -4px;
+  margin-right: 6px;
+  line-height: 0;
+}

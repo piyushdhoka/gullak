@@ -15,7 +15,9 @@ import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, typ
 
 import { APP_NAME, MAKER, WORDMARK } from '@/lib/app';
 import { faqLd, FAQS, howToLd, INSTALL_STEPS, organizationLd, PAGES, STEPS, webApplicationLd, type PageKey } from '@/lib/seo';
-import { BRAND_LOGOS } from '@/ui/brand-logos';
+import { CategoryTile, MerchantTile } from '@/components/txn-row';
+import { Glyph } from '@/ui/glyphs';
+import { useColors } from '@/ui/theme';
 
 import { hasAuthLinkError } from './auth-link';
 import { LandingPot } from './landing-pot';
@@ -217,7 +219,7 @@ export function Landing() {
             <figure className={styles.tfOut}>
               <figcaption className={styles.tfCap}>What lands in Gullak</figcaption>
               <div className={styles.txnCard}>
-                <BrandTile name="Swiggy" emoji="🍔" className={styles.txnEmoji} />
+                <Tile name="Swiggy" category="Food" size={42} />
                 <span className={styles.txnBody}>
                   <span className={styles.txnName}>Swiggy</span>
                   <span className={styles.txnMeta}>Food · HDFC Bank •1234</span>
@@ -318,7 +320,7 @@ export function FeaturesPage() {
                 <div data-k="payee">
                   <dt>Paid to</dt>
                   <dd className={styles.fPayee}>
-                    <BrandTile name="Swiggy" emoji="🍔" className={styles.fLogo} />
+                    <Tile name="Swiggy" category="Food" size={22} />
                     Swiggy
                   </dd>
                 </div>
@@ -328,7 +330,10 @@ export function FeaturesPage() {
                 </div>
                 <div data-k="cat">
                   <dt>Category</dt>
-                  <dd>🍔 Food</dd>
+                  <dd className={styles.fCat}>
+                    <Tile category="Food" size={22} />
+                    Food
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -347,9 +352,9 @@ export function FeaturesPage() {
               <code>paytmqr2810…</code> sold you. Pick once; every past and future payment there follows.
             </p>
             <div className={styles.notifStack}>
-              <Notif title="₹250 at Swiggy 🍔" body="Food, noted. Gullak is hungry now." actions={['Change category', 'My month']} />
+              <Notif title="₹250 at Swiggy" body="Food, noted. Gullak is hungry now." actions={['Change category', 'My month']} />
               <Notif
-                title="₹40 to paytmqr2810… 🤔"
+                title="₹40 to paytmqr2810…"
                 body="Who is this? Pick a category once and Gullak never asks again."
                 actions={['Pick category', 'Details']}
               />
@@ -366,7 +371,7 @@ export function FeaturesPage() {
                   <Mascot size={28} />
                 </span>
                 <p>
-                  <b>₹4,320</b> on Food so far this month. Swiggy is ₹2,610 of it. 🍔
+                  <b>₹4,320</b> on Food so far this month. Swiggy is ₹2,610 of it.
                 </p>
               </div>
               <p className={styles.chatMe}>And last month?</p>
@@ -393,9 +398,9 @@ export function FeaturesPage() {
             <h2 className={styles.h3}>Budgets that fill up</h2>
             <p className={styles.tileText}>Set a limit per category. Each payment adds a block, so you see it coming.</p>
             <ul className={styles.budgets}>
-              <Budget emoji="🛍️" name="Shopping" note="₹173 over" value={1.06} over />
-              <Budget emoji="🍔" name="Food" note="₹1,525 left" value={0.7} />
-              <Budget emoji="🛒" name="Groceries" note="₹3,222 left" value={0.36} />
+              <Budget name="Shopping" note="₹173 over" value={1.06} over />
+              <Budget name="Food" note="₹1,525 left" value={0.7} />
+              <Budget name="Groceries" note="₹3,222 left" value={0.36} />
             </ul>
           </article>
 
@@ -645,12 +650,10 @@ function PixelBar({ value, blocks = 20, tone }: { value: number; blocks?: number
   );
 }
 
-function Budget({ emoji, name, note, value, over }: { emoji: string; name: string; note: string; value: number; over?: boolean }) {
+function Budget({ name, note, value, over }: { name: string; note: string; value: number; over?: boolean }) {
   return (
     <li className={styles.budget}>
-      <span className={styles.budgetTile} aria-hidden>
-        {emoji}
-      </span>
+      <Tile category={name} size={38} />
       <span className={styles.budgetBody}>
         <span className={styles.budgetTop}>
           <span className={styles.budgetName}>{name}</span>
@@ -667,6 +670,7 @@ function Budget({ emoji, name, note, value, over }: { emoji: string; name: strin
 
 /** A Jar that fills with coins once it scrolls into view. */
 function JarDemo() {
+  const ink = useColors().label;
   const [ref, seen] = useSeen<HTMLDivElement>(0.5);
   const reduce = useReducedMotion();
   const [filling, setFilling] = useState(0.2);
@@ -682,7 +686,12 @@ function JarDemo() {
     <div className={styles.jar} ref={ref}>
       <LandingPot progress={p} size={104} className={styles.jarPot} />
       <div className={styles.jarBody}>
-        <p className={styles.jarName}>🏖️ Goa trip</p>
+        <p className={styles.jarName}>
+          <span className={styles.jarGlyph} aria-hidden>
+            <Glyph name="beach" size={20} color={ink} />
+          </span>
+          Goa trip
+        </p>
         <p className={styles.jarAmount}>
           ₹{inr.format(saved)} <span className={styles.jarOf}>of ₹20,000</span>
         </p>
@@ -724,24 +733,14 @@ const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 /** True once the element has been on screen (IntersectionObserver works through the page's scroller). */
 /* ---------------- brand logos & privacy icons ---------------- */
 
-/** A merchant's real logo on its brand colour (Simple Icons, CC0); the emoji tile when there isn't one. */
-function BrandTile({ name, emoji, className }: { name: string; emoji: string; className?: string }) {
-  const logo = BRAND_LOGOS[name];
-  if (!logo) {
-    return (
-      <span className={className} aria-hidden>
-        {emoji}
-      </span>
-    );
-  }
-  const hex = logo.hex.replace('#', '');
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const light = 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6;
+/**
+ * The app's own tile, drawn as inline SVG (no emoji, no network): the merchant's real logo (Simple Icons, CC0) on its
+ * brand colour when Gullak has one, otherwise the category icon. Decorative: the row's text carries the meaning.
+ */
+function Tile({ name, category, size, unknown }: { name?: string; category: string; size: number; unknown?: boolean }) {
   return (
-    <span className={`${className ?? ''} ${styles.brandTile}`} style={{ background: logo.hex }} aria-hidden>
-      <svg viewBox="0 0 24 24" width="58%" height="58%">
-        <path d={logo.path} fill={light ? '#1c0f0c' : '#ffffff'} />
-      </svg>
+    <span className={styles.iconTile} aria-hidden>
+      {name ? <MerchantTile name={name} category={category} size={size} unknown={unknown} /> : <CategoryTile category={category} size={size} unknown={unknown} />}
     </span>
   );
 }
@@ -870,12 +869,12 @@ const APPS = ['Google Pay', 'PhonePe', 'Paytm', 'CRED', 'BHIM', 'Amazon Pay', 'C
 
 // Titles and lines follow packages/core/src/push-voice.ts (paymentPush).
 const FEED = [
-  { emoji: '🍔', who: 'Swiggy', cat: 'Food', amt: 250, line: 'Food, noted. Gullak is hungry now.' },
-  { emoji: '🛺', who: 'Uber', cat: 'Transport', amt: 186, line: 'Filed under Transport. Safe ride!' },
-  { emoji: '🛒', who: 'Zepto', cat: 'Groceries', amt: 374, line: 'Filed under Groceries. Fridge: restocked.' },
-  { emoji: '🍔', who: 'Chai Point', cat: 'Food', amt: 40, line: 'Into the Food jar. Chai counts too.' },
-  { emoji: '💊', who: 'Apollo Pharmacy', cat: 'Health', amt: 512, line: 'Filed under Health. Get well soon.' },
-  { emoji: '📈', who: 'Groww SIP', cat: 'Investments', amt: 2000, line: 'Filed under Investments. Future you says thanks.' },
+  { who: 'Swiggy', cat: 'Food', amt: 250, line: 'Food, noted. Gullak is hungry now.' },
+  { who: 'Uber', cat: 'Transport', amt: 186, line: 'Filed under Transport. Safe ride!' },
+  { who: 'Zepto', cat: 'Groceries', amt: 374, line: 'Filed under Groceries. Fridge: restocked.' },
+  { who: 'Chai Point', cat: 'Food', amt: 40, line: 'Into the Food jar. Chai counts too.' },
+  { who: 'Apollo Pharmacy', cat: 'Health', amt: 512, line: 'Filed under Health. Get well soon.' },
+  { who: 'Groww SIP', cat: 'Investments', amt: 2000, line: 'Filed under Investments. Future you says thanks.' },
 ];
 const START_TOTAL = 18430;
 
@@ -911,7 +910,7 @@ function HeroPhone() {
               .map((f, i) => (
                 <li key={f.who} className={styles.feedItem}>
                   <Notif
-                    title={`₹${inr.format(f.amt)} at ${f.who} ${f.emoji}`}
+                    title={`₹${inr.format(f.amt)} at ${f.who}`}
                     body={f.line}
                     actions={i === 0 ? ['Change category', 'My month'] : undefined}
                   />
@@ -1082,16 +1081,16 @@ function StoryScreen({ step }: { step: number }) {
   }
   return (
     <div className={styles.scr}>
-      <Notif title="₹250 at Swiggy 🍔" body="Food, noted. Gullak is hungry now." />
+      <Notif title="₹250 at Swiggy" body="Food, noted. Gullak is hungry now." />
       <p className={styles.scrTime}>Today · ₹664 spent</p>
       <div className={styles.rows}>
         {[
-          { e: '🍔', name: 'Swiggy', cat: 'Food', amt: '₹250' },
-          { e: '🛒', name: 'BigBasket', cat: 'Groceries', amt: '₹374' },
-          { e: '🤔', name: 'paytmqr2810…', cat: 'Tap to pick a category', amt: '₹40', warn: true },
+          { name: 'Swiggy', icon: 'Food', cat: 'Food', amt: '₹250' },
+          { name: 'BigBasket', icon: 'Groceries', cat: 'Groceries', amt: '₹374' },
+          { name: 'paytmqr2810…', icon: 'Other', cat: 'Tap to pick a category', amt: '₹40', warn: true },
         ].map((r) => (
           <div key={r.name} className={styles.row}>
-            {r.warn ? <span className={styles.rowEmoji}>{r.e}</span> : <BrandTile name={r.name} emoji={r.e} className={styles.rowEmoji} />}
+            <Tile name={r.warn ? undefined : r.name} category={r.icon} size={34} unknown={r.warn} />
             <span className={styles.rowBody}>
               <span className={styles.rowName}>{r.name}</span>
               <span className={r.warn ? styles.rowWarn : styles.rowCat}>{r.cat}</span>
