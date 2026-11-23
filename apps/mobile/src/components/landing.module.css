@@ -165,16 +165,22 @@
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
   transition:
     transform 90ms ease-out,
     box-shadow 90ms ease-out;
 }
 
-.navCta:hover,
-.primary:hover,
-.nextLink:hover {
-  transform: translate(1px, 1px);
-  box-shadow: 2px 2px 0 var(--shadow);
+/* Hover only where there is a real mouse: on phones a tap leaves :hover "stuck" on the last thing touched. */
+@media (hover: hover) and (pointer: fine) {
+  .navCta:hover,
+  .primary:hover,
+  .nextLink:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 var(--shadow);
+  }
 }
 
 .navCta:active,
@@ -227,11 +233,22 @@
   color: var(--ink-2);
   padding: 8px 12px;
   border-radius: 999px;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-.navLinks a:hover {
-  color: var(--ink);
-  background: var(--fill-2);
+@media (hover: hover) and (pointer: fine) {
+  .navLinks a:hover {
+    color: var(--ink);
+    background: var(--fill-2);
+  }
+}
+
+/* A mouse click shouldn't leave a focus ring on the link; keyboard focus still shows it (:focus-visible). */
+.nav a:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .navLinks a[aria-current='page'] {
@@ -255,8 +272,10 @@
   box-shadow: 2px 2px 0 var(--shadow);
 }
 
-.navCta:hover {
-  box-shadow: 1px 1px 0 var(--shadow);
+@media (hover: hover) and (pointer: fine) {
+  .navCta:hover {
+    box-shadow: 1px 1px 0 var(--shadow);
+  }
 }
 
 .navCta:active {
@@ -814,8 +833,10 @@
   box-shadow: 2px 2px 0 var(--shadow);
 }
 
-.marquee:hover .marqueeTrack {
-  animation-play-state: paused;
+@media (hover: hover) and (pointer: fine) {
+  .marquee:hover .marqueeTrack {
+    animation-play-state: paused;
+  }
 }
 
 /* ---------- intro: the SMS becomes an expense ---------- */
@@ -1150,10 +1171,12 @@
   padding: 6px 0;
 }
 
-.footerLinks a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+@media (hover: hover) and (pointer: fine) {
+  .footerLinks a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
 }
 
 .footerMaker {
@@ -1705,8 +1728,10 @@
   display: none;
 }
 
-.faqItem summary:hover {
-  background: var(--fill-2);
+@media (hover: hover) and (pointer: fine) {
+  .faqItem summary:hover {
+    background: var(--fill-2);
+  }
 }
 
 .faqItem p {
@@ -2301,4 +2326,83 @@
   vertical-align: -4px;
   margin-right: 6px;
   line-height: 0;
+}
+
+/* ---------- page enter: top-to-bottom blur-fade (after Magic UI "BlurFade") ----------
+   Plays once when a page mounts: each block fades in and drops ~10px, ~60ms after the one above it.
+   Text also un-blurs (blur is only used on text, never on big cards, so it stays cheap on phones).
+   Normal load animations (not scroll-driven), fill-mode backwards: once finished, the element is
+   exactly as styled, and with reduced motion (block above) everything just shows. */
+@keyframes enterDown {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+}
+
+@keyframes enterDownBlur {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+    filter: blur(6px);
+  }
+}
+
+.heroText > *,
+.hero > :not(.heroText),
+.pageHead > * > *,
+.pageHead > .pageSide,
+.subpage > :not(header),
+main > section {
+  animation: enterDown 560ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.heroText > h1,
+.heroText > .lede,
+.pageTitle,
+.pageLede {
+  animation-name: enterDownBlur;
+}
+
+.heroText > :nth-child(1),
+.pageHead > * > :nth-child(1) {
+  animation-delay: 40ms;
+}
+.heroText > :nth-child(2),
+.pageHead > * > :nth-child(2) {
+  animation-delay: 100ms;
+}
+.heroText > :nth-child(3),
+.pageHead > .pageSide {
+  animation-delay: 160ms;
+}
+.heroText > :nth-child(4) {
+  animation-delay: 220ms;
+}
+.heroText > :nth-child(5),
+.subpage > :not(header):nth-child(2),
+main > section:nth-child(1) {
+  animation-delay: 280ms;
+}
+.heroText > :nth-child(6),
+.subpage > :not(header):nth-child(3),
+main > section:nth-child(2) {
+  animation-delay: 340ms;
+}
+.heroText > :nth-child(n + 7),
+.hero > :not(.heroText),
+.subpage > :not(header):nth-child(n + 4),
+main > section:nth-child(n + 3) {
+  animation-delay: 400ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroText > *,
+.hero > :not(.heroText),
+  .pageHead > * > *,
+  .pageHead > .pageSide,
+  .subpage > :not(header),
+  main > section {
+    animation: none !important;
+  }
 }
