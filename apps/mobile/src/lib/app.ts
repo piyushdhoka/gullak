@@ -8,4 +8,7 @@ export const APP_NAME = 'Gullak';
 export const WORDMARK = { latin: 'Gul', devanagari: 'लक' } as const;
 export const WORDMARK_TEXT = `${WORDMARK.latin}${WORDMARK.devanagari}`;
 
+/** Who made Gullak (credited in the website footer, Settings > About and the SEO metadata). */
+export const MAKER = { name: 'Piyush Dhoka', url: 'https://piyushdhoka.sparkstudio.co.in' } as const;
+
 export const TAGLINE_EN = 'Every rupee you spend, recorded on its own.';

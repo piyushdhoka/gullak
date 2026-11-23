@@ -1,0 +1,36 @@
+# Gullak
+
+> Gullak is a free expense tracker for people in India. It reads the SMS your bank already sends (forwarded by an iPhone Shortcut) and turns each one into a sorted, totalled expense, so there is nothing to type. No bank login. It installs from Safari on iPhone as a Home Screen app; an Android app is planned but not released.
+
+Made by [Piyush Dhoka](https://piyushdhoka.sparkstudio.co.in).
+
+## How it works
+- You pay with GPay, PhonePe, Paytm, CRED, BHIM or a card, and your bank sends its usual SMS.
+- A Shortcuts automation on your iPhone forwards that SMS to Gullak. It runs on its own.
+- Gullak reads the amount, payee and category, skips duplicates, and sends a notification. If it cannot tell a payee (for example a chai stall's QR code), it asks you once.
+
+## Privacy
+- Only messages that look like bank or payment SMS are kept. Personal messages are dropped immediately without being stored.
+- No bank login, no bank passwords and no account linking.
+- Runs on Gullak's own server, not an ad network.
+
+## Install (iPhone)
+1. Open https://gullak.sparkstudio.co.in in Safari on your iPhone.
+2. Tap Share, choose Add to Home Screen, then Add.
+3. Open Gullak from the Home Screen and create your account.
+It is not in the App Store; it updates itself and does not expire.
+
+## Features
+- Automatic categories for UPI, card, NEFT/IMPS, ATM and salary SMS from major Indian banks (HDFC, SBI, ICICI, Axis, Kotak, Yes, IDFC FIRST and more).
+- A notification for every payment, budgets per category, Gullak Jars for savings goals, and Gullu, a chat assistant for your spending.
+- UPI Lite and cash usually send no SMS, so those are added by hand.
+
+## Pages
+- [Home](https://gullak.sparkstudio.co.in/): what Gullak is.
+- [How it works](https://gullak.sparkstudio.co.in/how-it-works): the three steps.
+- [Features](https://gullak.sparkstudio.co.in/features): categories, budgets, jars, Gullu, privacy.
+- [FAQ](https://gullak.sparkstudio.co.in/faq): privacy, banks, Android, App Store, UPI Lite.
+- [Install](https://gullak.sparkstudio.co.in/install): add Gullak to your iPhone.
+
+## Optional
+- [Full text for LLMs](https://gullak.sparkstudio.co.in/llms-full.txt)

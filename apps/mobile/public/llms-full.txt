@@ -1,0 +1,43 @@
+# Gullak (full text)
+
+Gullak is a free expense tracker for India, made by Piyush Dhoka (https://piyushdhoka.sparkstudio.co.in). Tagline: "Every rupee, sorted on its own." It reads bank SMS forwarded from an iPhone and sorts each payment automatically. No bank login. Installs from Safari on iPhone; an Android app is planned but not released yet.
+
+## How it works
+1. You pay. GPay, PhonePe, a card, anything. Your bank sends its usual SMS a moment later.
+2. Your iPhone passes it on. A Shortcuts automation forwards the message to Gullak. It runs on its own: no tap, no app to open.
+3. Gullak sorts it. Amount, payee and category are read out, duplicates skipped, and a notification confirms it.
+
+## FAQ
+Q: Does Gullak read my personal messages?
+A: Your iPhone forwards incoming messages, and Gullak keeps only the ones that look like bank or payment SMS. Everything else is dropped immediately, without being saved.
+
+Q: Which banks and apps does it work with?
+A: Any UPI app (GPay, PhonePe, Paytm, CRED, BHIM) and cards, because it reads the SMS your bank sends. HDFC, SBI, ICICI, Axis, Kotak, Yes, IDFC FIRST and more are supported. If a message is not understood, it is kept aside so nothing is lost.
+
+Q: Is it on Android?
+A: Not yet. The iPhone version is first. Android can read bank SMS directly, so it is next.
+
+Q: Why isn't it in the App Store?
+A: Gullak installs straight from Safari: open the site on your iPhone, tap Share, then Add to Home Screen. It updates itself and never expires.
+
+Q: What about UPI Lite and cash?
+A: UPI Lite payments usually do not send an SMS, so they cannot be picked up automatically. You can add those by hand.
+
+## Install on iPhone
+1. Open https://gullak.sparkstudio.co.in in Safari on your iPhone.
+2. Tap Share, choose Add to Home Screen, then Add.
+3. Open Gullak from your Home Screen and create your account.
+
+## Features
+- Automatic categories from bank SMS.
+- A notification for every payment.
+- Budgets per category that fill up with each payment.
+- Gullak Jars: savings goals shown as a clay pot that fills with coins.
+- Gullu: a chat assistant that answers questions about your spending.
+
+## Links
+- https://gullak.sparkstudio.co.in/
+- https://gullak.sparkstudio.co.in/how-it-works
+- https://gullak.sparkstudio.co.in/features
+- https://gullak.sparkstudio.co.in/faq
+- https://gullak.sparkstudio.co.in/install

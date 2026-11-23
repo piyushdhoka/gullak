@@ -13,7 +13,8 @@
 import { router, type Href } from 'expo-router';
 import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from 'react';
 
-import { APP_NAME, WORDMARK } from '@/lib/app';
+import { APP_NAME, MAKER, WORDMARK } from '@/lib/app';
+import { faqLd, FAQS, howToLd, INSTALL_STEPS, organizationLd, STEPS, webApplicationLd } from '@/lib/seo';
 import { BRAND_LOGOS } from '@/ui/brand-logos';
 
 import { hasAuthLinkError } from './auth-link';
@@ -47,9 +48,21 @@ function SiteLink({ href, className, children, label }: { href: Href & string; c
 }
 
 /** Nav and footer shared by every public page. */
-function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<HTMLDivElement | null> }) {
+function Site({
+  children,
+  pageRef,
+  ld = [],
+}: {
+  children: ReactNode;
+  pageRef?: RefObject<HTMLDivElement | null>;
+  /** schema.org objects for this page, written into the HTML as JSON-LD. */
+  ld?: object[];
+}) {
   return (
     <div className={styles.page} ref={pageRef}>
+      {ld.map((d, i) => (
+        <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(d).replace(/</g, '\\u003c') }} />
+      ))}
       <nav className={styles.nav} aria-label={APP_NAME}>
         <SiteLink className={styles.navBrand} href="/" label={`${APP_NAME} home`}>
           <Mascot size={34} eager />
@@ -95,6 +108,12 @@ function Site({ children, pageRef }: { children: ReactNode; pageRef?: RefObject<
           <SiteLink href="/install">Install</SiteLink>
           <SiteLink href="/sign-in">Sign in</SiteLink>
         </div>
+        <p className={styles.footerMaker}>
+          Made by{' '}
+          <a href={MAKER.url} target="_blank" rel="noopener" lang="en">
+            {MAKER.name}
+          </a>
+        </p>
       </footer>
     </div>
   );
@@ -135,7 +154,7 @@ export function Landing() {
     if (hasAuthLinkError()) router.replace('/sign-in');
   }, []);
   return (
-    <Site>
+    <Site ld={[webApplicationLd(), organizationLd()]}>
       <header className={styles.hero}>
         <div className={styles.heroText}>
           <p className={styles.badge}>
@@ -239,7 +258,9 @@ export function Landing() {
 export function HowItWorksPage() {
   const pageRef = useRef<HTMLDivElement>(null);
   return (
-    <Site pageRef={pageRef}>
+    <Site
+      pageRef={pageRef}
+      ld={[howToLd('How Gullak turns a bank SMS into a sorted expense', STEPS.map((x) => ({ name: x.title, text: x.text })), '/how-it-works')]}>
       <main className={styles.subpage}>
         <Story root={pageRef} />
         <Next href="/features" label="Features" />
@@ -388,7 +409,7 @@ export function FeaturesPage() {
 /** "/faq" */
 export function FaqPage() {
   return (
-    <Site>
+    <Site ld={[faqLd()]}>
       <main className={styles.subpage}>
         <PageHead
           id="faq-title"
@@ -397,26 +418,11 @@ export function FaqPage() {
           side={<Mascot size={140} className={styles.sideMascot} />}
         />
         <section className={styles.faq} aria-labelledby="faq-title">
-          <Faq q="Does Gullak read my personal messages?">
-            Your iPhone forwards incoming messages, and Gullak keeps only the ones that look like bank or payment SMS.
-            Everything else is dropped immediately, without being saved.
-          </Faq>
-          <Faq q="Which banks and apps does it work with?">
-            Any UPI app (GPay, PhonePe, Paytm, CRED, BHIM) and cards, because it reads the SMS your bank sends. HDFC, SBI,
-            ICICI, Axis, Kotak, Yes, IDFC FIRST and more are supported. If a message isn’t understood, it’s kept aside so
-            nothing is lost.
-          </Faq>
-          <Faq q="Is it on Android?">
-            Not yet. The iPhone version is first. Android can read bank SMS directly, so it’s next.
-          </Faq>
-          <Faq q="Why isn’t it in the App Store?">
-            Gullak installs straight from Safari: open this site on your iPhone, tap Share, then Add to Home Screen. It
-            updates itself and never expires.
-          </Faq>
-          <Faq q="What about UPI Lite and cash?">
-            UPI Lite payments usually don’t send an SMS, so they can’t be picked up automatically. You can add those by
-            hand.
-          </Faq>
+          {FAQS.map((f) => (
+            <Faq key={f.q} q={f.q}>
+              {f.a}
+            </Faq>
+          ))}
         </section>
         <Next href="/install" label="Get Gullak" />
       </main>
@@ -427,7 +433,7 @@ export function FaqPage() {
 /** "/install": the three steps on a phone, a QR code on a laptop. */
 export function InstallPage() {
   return (
-    <Site>
+    <Site ld={[howToLd('How to add Gullak to your iPhone', INSTALL_STEPS, '/install')]}>
       <main className={styles.subpage}>
         <PageHead
           id="install-title"
@@ -918,17 +924,6 @@ function HeroPhone() {
 
 /* ---------------- story: sticky screen that changes with the step in view ---------------- */
 
-const STEPS = [
-  { title: 'You pay', text: 'GPay, PhonePe, a card, anything. Your bank sends its usual SMS a moment later.' },
-  {
-    title: 'Your iPhone passes it on',
-    text: 'A Shortcuts automation forwards the message to Gullak. It runs on its own: no tap, no app to open.',
-  },
-  {
-    title: 'Gullak sorts it',
-    text: 'Amount, payee and category are read out, duplicates skipped, and a notification confirms it.',
-  },
-];
 
 function Story({ root }: { root: RefObject<HTMLDivElement | null> }) {
   const [active, setActive] = useState(0);

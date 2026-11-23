@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { confirm } from '@/lib/confirm';
 
@@ -10,7 +10,7 @@ import { AppearancePicker } from '@/components/settings-appearance';
 import { PushToggle } from '@/components/settings-push';
 import { tileInk } from '@/components/txn-row';
 import { Wordmark } from '@/components/wordmark';
-import { APP_NAME, TAGLINE_EN } from '@/lib/app';
+import { APP_NAME, MAKER, TAGLINE_EN } from '@/lib/app';
 import { useData } from '@/lib/data';
 import { shortMonth } from '@/lib/format';
 import { monthOf } from '@/lib/stats';
@@ -111,6 +111,7 @@ export default function SettingsScreen() {
         footer={`${APP_NAME} reads the SMS your bank sends (forwarded by an iOS Shortcut on iPhone) and sorts each payment automatically. Personal messages are discarded without being stored.`}>
         <Row title="Version" value={APP_VERSION} />
         <Row title="Capture" value="Bank SMS" />
+        <Row title="Made by" value={MAKER.name} onPress={() => Linking.openURL(MAKER.url)} />
       </Section>
 
       {mode === 'live' ? (

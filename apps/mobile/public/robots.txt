@@ -1,0 +1,20 @@
+# Gullak: the public website is open to crawlers; the signed-in app screens are not.
+User-agent: *
+Allow: /
+Disallow: /activity
+Disallow: /settings
+Disallow: /setup
+Disallow: /transaction
+Disallow: /review
+Disallow: /inbox
+Disallow: /add
+Disallow: /budgets
+Disallow: /subscriptions
+Disallow: /jars
+Disallow: /jar
+Disallow: /ask
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /forgot-password
+
+Sitemap: https://gullak.sparkstudio.co.in/sitemap.xml

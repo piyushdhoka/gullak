@@ -10,8 +10,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-        <title>Gullak · Every rupee, sorted on its own</title>
-        <meta name="description" content="Every rupee you spend, recorded on its own." />
+        {/* Title, description, canonical, Open Graph and Twitter tags come from each route's generateMetadata() (src/lib/seo.ts). */}
 
         {/* The main text font: fetch every above-the-fold font early; with font-display: block the first paint waits for them instead of flashing a fallback. */}
         <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />

@@ -1156,6 +1156,19 @@
   text-underline-offset: 4px;
 }
 
+.footerMaker {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 8px 20px 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.footerMaker a {
+  font-weight: 700;
+  text-underline-offset: 4px;
+}
+
 /* ---------- subpages ---------- */
 
 .subpage {

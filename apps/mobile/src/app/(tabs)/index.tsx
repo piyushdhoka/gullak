@@ -10,6 +10,7 @@ import { CategoryTile, MerchantTile, TxnRow } from '@/components/txn-row';
 import { jarPlan } from '@gullak/core/jars.ts';
 import { categoryMeta } from '@/lib/categories';
 import { useData } from '@/lib/data';
+import { pageMetadata } from '@/lib/seo';
 import { money, monthName, shortMonth } from '@/lib/format';
 import {
   addMonths,
@@ -30,6 +31,9 @@ import { Screen } from '@/ui/screen';
 import { Coin, MatkaBand, PixelBar, Sticker } from '@/ui/sticker';
 import { Text } from '@/ui/text';
 import { layout, useColors } from '@/ui/theme';
+
+// Static HTML for "/" is the public home page (signed-out visitors), so it carries the home metadata.
+export const generateMetadata = () => pageMetadata('home');
 
 export default function SummaryScreen() {
   const { transactions, review, mode, refresh, refreshing, loading, budgets } = useData();
