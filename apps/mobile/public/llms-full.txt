@@ -1,6 +1,6 @@
 # Gullak (full text)
 
-Gullak is a free expense tracker for India, made by Piyush Dhoka (https://piyushdhoka.sparkstudio.co.in). Tagline: "Every rupee, sorted on its own." It reads bank SMS forwarded from an iPhone and sorts each payment automatically. No bank login. Installs from Safari on iPhone; an Android app is planned but not released yet.
+Gullak is a free expense tracker for India, made by Piyush Dhoka (https://piyush.sparkstudio.co.in/). Tagline: "Every rupee, sorted on its own." It reads bank SMS forwarded from an iPhone and sorts each payment automatically. No bank login. Installs from Safari on iPhone; an Android app is planned but not released yet.
 
 ## How it works
 1. You pay. GPay, PhonePe, a card, anything. Your bank sends its usual SMS a moment later.

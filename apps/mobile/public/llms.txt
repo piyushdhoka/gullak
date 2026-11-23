@@ -2,7 +2,7 @@
 
 > Gullak is a free expense tracker for people in India. It reads the SMS your bank already sends (forwarded by an iPhone Shortcut) and turns each one into a sorted, totalled expense, so there is nothing to type. No bank login. It installs from Safari on iPhone as a Home Screen app; an Android app is planned but not released.
 
-Made by [Piyush Dhoka](https://piyushdhoka.sparkstudio.co.in).
+Made by [Piyush Dhoka](https://piyush.sparkstudio.co.in/).
 
 ## How it works
 - You pay with GPay, PhonePe, Paytm, CRED, BHIM or a card, and your bank sends its usual SMS.
