@@ -95,7 +95,7 @@ function Site({
         <Band className={styles.footerBand} waves={24} />
         <div className={styles.footerInner}>
           <div className={styles.footerBrand}>
-            <Mascot size={120} className={styles.footerMascot} />
+            <Mascot size={96} className={styles.footerMascot} />
             <div>
               <p className={styles.footerMark}>
                 <SiteLink href="/" className={styles.footerHome} label={`${APP_NAME} home`}>
@@ -105,17 +105,24 @@ function Site({
               <p className={styles.footerLine}>Every rupee, sorted on its own. Free for iPhone.</p>
             </div>
           </div>
-          <GetIt onClay hideSignIn />
+          <nav className={styles.footerCols} aria-label="Footer">
+            <div className={styles.footerCol}>
+              <p className={styles.footerHead}>Pages</p>
+              <SiteLink href="/">Home</SiteLink>
+              {NAV.map((n) => (
+                <SiteLink key={n.href} href={n.href}>
+                  {n.label}
+                </SiteLink>
+              ))}
+            </div>
+            <div className={styles.footerCol}>
+              <p className={styles.footerHead}>Get Gullak</p>
+              <SiteLink href="/install">Add to iPhone</SiteLink>
+              <SiteLink href="/faq">Is it on Android?</SiteLink>
+            </div>
+          </nav>
         </div>
         <Band className={styles.footerBand} waves={24} dots={false} />
-        <div className={styles.footerLinks}>
-          {NAV.map((n) => (
-            <SiteLink key={n.href} href={n.href}>
-              {n.label}
-            </SiteLink>
-          ))}
-          <SiteLink href="/install">Install</SiteLink>
-        </div>
         <p className={styles.footerMaker}>
           Made by{' '}
           {MAKERS.map((m, i) => (
@@ -130,6 +137,7 @@ function Site({
               )}
             </Fragment>
           ))}
+          . © 2026 Gullak.
         </p>
       </footer>
     </div>
@@ -225,6 +233,97 @@ export function Landing() {
           </div>
         </section>
 
+        <section className={styles.howSteps} aria-labelledby="steps-title">
+          <h2 id="steps-title" className={styles.h2}>
+            Three steps. You only do the first.
+          </h2>
+          <ol className={styles.stepCards}>
+            {STEPS.map((st, i) => (
+              <li key={st.title} className={styles.stepCard}>
+                <span className={styles.stepNum} aria-hidden>
+                  {i + 1}
+                </span>
+                <h3 className={styles.h3}>{st.title}</h3>
+                <p className={styles.tileText}>{st.text}</p>
+                <div className={styles.stepDemo} aria-hidden>
+                  {i === 0 ? (
+                    <p className={styles.tfBubble}>
+                      Sent <b>Rs.250.00</b> From HDFC Bank A/C *1234 To <b>SWIGGY</b> On 22/11/26
+                    </p>
+                  ) : i === 1 ? (
+                    <p className={styles.flowDone}>✓ Ran just now, on its own</p>
+                  ) : (
+                    <div className={styles.txnCard}>
+                      <Tile name="Swiggy" category="Food" size={42} />
+                      <span className={styles.txnBody}>
+                        <span className={styles.txnName}>Swiggy</span>
+                        <span className={styles.txnMeta}>Food · HDFC Bank •1234</span>
+                      </span>
+                      <span className={styles.txnAmt}>₹250</span>
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className={styles.sectionCta}>
+            <SiteLink href="/install" className={styles.primary}>
+              Add to iPhone
+            </SiteLink>
+            <SiteLink href="/how-it-works" className={styles.textButton}>
+              See it in detail
+            </SiteLink>
+          </p>
+        </section>
+
+        <section className={styles.stats} aria-label="Gullak at a glance">
+          <dl className={styles.statRow}>
+            <div className={styles.stat}>
+              <dt>Amounts you type</dt>
+              <dd>0</dd>
+            </div>
+            <div className={styles.stat}>
+              <dt>Bank logins needed</dt>
+              <dd>0</dd>
+            </div>
+            <div className={styles.stat}>
+              <dt>Price to use it</dt>
+              <dd>₹0</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className={styles.featureBlock} aria-labelledby="features-home-title">
+          <h2 id="features-home-title" className={styles.h2}>
+            Everything it does with that one SMS
+          </h2>
+          <FeatureTiles labelledBy="features-home-title" />
+          <p className={styles.sectionCta}>
+            <SiteLink href="/features" className={styles.textButton}>
+              All features →
+            </SiteLink>
+          </p>
+        </section>
+
+        <section className={styles.free} aria-labelledby="free-title">
+          <div className={styles.freeCard}>
+            <p className={styles.freeTag}>Pricing</p>
+            <h2 id="free-title" className={styles.freeTitle}>
+              Free
+            </h2>
+            <p className={styles.tileText}>Everything in Gullak, with no plan to pick and no card to add.</p>
+            <ul className={styles.freeList}>
+              <li>Automatic categories from your bank SMS</li>
+              <li>A notification for every payment</li>
+              <li>Budgets, Gullak Jars and Gullu</li>
+              <li>No bank login, and chats are never kept</li>
+            </ul>
+            <SiteLink href="/install" className={styles.primary}>
+              Add to iPhone
+            </SiteLink>
+          </div>
+        </section>
+
         <section className={styles.note} aria-labelledby="note-title">
           <div className={styles.receiptWrap}>
             <article className={styles.receipt}>
@@ -265,7 +364,26 @@ export function Landing() {
             </article>
           </div>
         </section>
-        <Next href="/how-it-works" label="See how it works" />
+        <section className={styles.faqBlock} aria-labelledby="faq-home-title">
+          <h2 id="faq-home-title" className={styles.h2}>
+            Questions, answered
+          </h2>
+          <div className={styles.faq}>
+            {FAQS.map((f) => (
+              <Faq key={f.q} q={f.q}>
+                {f.a}
+              </Faq>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.closing} aria-labelledby="closing-title">
+          <h2 id="closing-title" className={styles.h2}>
+            Let your bank do the typing.
+          </h2>
+          <p className={styles.introText}>Add Gullak to your iPhone in three taps. It is free and it updates itself.</p>
+          <GetIt hideSignIn />
+        </section>
       </main>
     </Site>
   );
@@ -297,133 +415,140 @@ export function FeaturesPage() {
           title="From a bank SMS to a clear month"
           lede="Everything Gullak does starts with a message your bank already sends."
         />
-        <section className={styles.bento} aria-labelledby="features-title">
-          <article className={`${styles.tile} ${styles.span4}`}>
-            <h2 className={styles.h3}>Reads the SMS, not your bank account</h2>
-            <p className={styles.tileText}>Amount, payee, account and UPI reference, picked straight out of the message.</p>
-            <div className={styles.parse}>
-              <p className={styles.smsText}>
-                Sent <mark className={styles.mAmount}>Rs.250.00</mark> From HDFC Bank A/C{' '}
-                <mark className={styles.mAccount}>*1234</mark> To <mark className={styles.mPayee}>SWIGGY</mark> On 22/11/26
-                Ref <mark className={styles.mRef}>528461234567</mark>
-              </p>
-              <dl className={styles.fields}>
-                <div data-k="amount">
-                  <dt>Spent</dt>
-                  <dd className={styles.fAmount}>₹250.00</dd>
-                </div>
-                <div data-k="payee">
-                  <dt>Paid to</dt>
-                  <dd className={styles.fPayee}>
-                    <Tile name="Swiggy" category="Food" size={22} />
-                    Swiggy
-                  </dd>
-                </div>
-                <div data-k="account">
-                  <dt>From</dt>
-                  <dd>HDFC Bank •1234</dd>
-                </div>
-                <div data-k="cat">
-                  <dt>Category</dt>
-                  <dd className={styles.fCat}>
-                    <Tile category="Food" size={22} />
-                    Food
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </article>
-
-          <article className={`${styles.tile} ${styles.span2} ${styles.tileStats}`} aria-label="Gullak in numbers">
-            <Stat value={20} suffix="+" label="Indian banks read" />
-            <Stat value={90} suffix="+" label="merchants recognised" />
-            <Stat value={5} prefix="~" suffix="s" label="from SMS to sorted" />
-          </article>
-
-          <article className={`${styles.tile} ${styles.span3}`}>
-            <h2 className={styles.h3}>A nudge for every payment</h2>
-            <p className={styles.tileText}>
-              A notification lands a few seconds after you pay. And a QR code isn’t a name: Gullak won’t guess what{' '}
-              <code>paytmqr2810…</code> sold you. Pick once; every past and future payment there follows.
-            </p>
-            <div className={styles.notifStack}>
-              <Notif title="₹250 at Swiggy" body="Food, noted. Gullak is hungry now." actions={['Change category', 'My month']} />
-              <Notif
-                title="₹40 to paytmqr2810…"
-                body="Who is this? Pick a category once and Gullak never asks again."
-                actions={['Pick category', 'Details']}
-              />
-            </div>
-          </article>
-
-          <article className={`${styles.tile} ${styles.span3}`}>
-            <h2 className={styles.h3}>Ask Gullu</h2>
-            <p className={styles.tileText}>Gullu is the chatbot inside Gullak. Ask about your money in plain words.</p>
-            <div className={styles.chat} aria-label="A sample chat with Gullu" role="group">
-              <p className={styles.chatMe}>How much did I spend on food this month?</p>
-              <div className={styles.chatGullu}>
-                <span className={styles.chatAvatar} aria-hidden>
-                  <Mascot size={28} />
-                </span>
-                <p>
-                  <b>₹4,320</b> on Food so far this month. Swiggy is ₹2,610 of it.
-                </p>
-              </div>
-              <p className={styles.chatMe}>And last month?</p>
-              <div className={styles.chatGullu}>
-                <span className={styles.chatAvatar} aria-hidden>
-                  <Mascot size={28} />
-                </span>
-                <p className={styles.typing} aria-label="Gullu is typing">
-                  <span />
-                  <span />
-                  <span />
-                </p>
-              </div>
-            </div>
-          </article>
-
-          <article className={`${styles.tile} ${styles.span3}`}>
-            <h2 className={styles.h3}>Gullak Jars</h2>
-            <p className={styles.tileText}>Save towards something. The pot fills with coins, and sprouts when it’s full.</p>
-            <JarDemo />
-          </article>
-
-          <article className={`${styles.tile} ${styles.span3}`}>
-            <h2 className={styles.h3}>Budgets that fill up</h2>
-            <p className={styles.tileText}>Set a limit per category. Each payment adds a block, so you see it coming.</p>
-            <ul className={styles.budgets}>
-              <Budget name="Shopping" note="₹173 over" value={1.06} over />
-              <Budget name="Food" note="₹1,525 left" value={0.7} />
-              <Budget name="Groceries" note="₹3,222 left" value={0.36} />
-            </ul>
-          </article>
-
-          <article className={`${styles.tile} ${styles.span6} ${styles.tilePrivacy}`}>
-            <h2 className={styles.h3}>Your messages stay yours</h2>
-            <p className={styles.tileText}>Gullak only needs your bank’s SMS. Everything else stays out.</p>
-            <ul className={styles.promises}>
-              <li>
-                <PrivacyIcon kind="chat" />
-                <span className={styles.promiseTitle}>Chats never kept</span>
-                <span className={styles.promiseText}>Personal chats are dropped before they’re stored.</span>
-              </li>
-              <li>
-                <PrivacyIcon kind="key" />
-                <span className={styles.promiseTitle}>No bank login</span>
-                <span className={styles.promiseText}>No bank passwords, no account linking.</span>
-              </li>
-              <li>
-                <PrivacyIcon kind="server" />
-                <span className={styles.promiseTitle}>Our own server</span>
-                <span className={styles.promiseText}>Runs on Gullak’s own server, not an ad network.</span>
-              </li>
-            </ul>
-          </article>
-        </section>
+        <FeatureTiles labelledBy="features-title" />
         <Next href="/faq" label="Questions" />
       </main>
     </Site>
+  );
+}
+
+/** The features bento: shared by the Features page and the home page. */
+function FeatureTiles({ labelledBy }: { labelledBy: string }) {
+  return (
+    <section className={styles.bento} aria-labelledby={labelledBy}>
+      <article className={`${styles.tile} ${styles.span4}`}>
+        <h2 className={styles.h3}>Reads the SMS, not your bank account</h2>
+        <p className={styles.tileText}>Amount, payee, account and UPI reference, picked straight out of the message.</p>
+        <div className={styles.parse}>
+          <p className={styles.smsText}>
+            Sent <mark className={styles.mAmount}>Rs.250.00</mark> From HDFC Bank A/C{' '}
+            <mark className={styles.mAccount}>*1234</mark> To <mark className={styles.mPayee}>SWIGGY</mark> On 22/11/26
+            Ref <mark className={styles.mRef}>528461234567</mark>
+          </p>
+          <dl className={styles.fields}>
+            <div data-k="amount">
+              <dt>Spent</dt>
+              <dd className={styles.fAmount}>₹250.00</dd>
+            </div>
+            <div data-k="payee">
+              <dt>Paid to</dt>
+              <dd className={styles.fPayee}>
+                <Tile name="Swiggy" category="Food" size={22} />
+                Swiggy
+              </dd>
+            </div>
+            <div data-k="account">
+              <dt>From</dt>
+              <dd>HDFC Bank •1234</dd>
+            </div>
+            <div data-k="cat">
+              <dt>Category</dt>
+              <dd className={styles.fCat}>
+                <Tile category="Food" size={22} />
+                Food
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </article>
+
+      <article className={`${styles.tile} ${styles.span2} ${styles.tileStats}`} aria-label="Gullak in numbers">
+        <Stat value={20} suffix="+" label="Indian banks read" />
+        <Stat value={90} suffix="+" label="merchants recognised" />
+        <Stat value={5} prefix="~" suffix="s" label="from SMS to sorted" />
+      </article>
+
+      <article className={`${styles.tile} ${styles.span3}`}>
+        <h2 className={styles.h3}>A nudge for every payment</h2>
+        <p className={styles.tileText}>
+          A notification lands a few seconds after you pay. And a QR code isn’t a name: Gullak won’t guess what{' '}
+          <code>paytmqr2810…</code> sold you. Pick once; every past and future payment there follows.
+        </p>
+        <div className={styles.notifStack}>
+          <Notif title="₹250 at Swiggy" body="Food, noted. Gullak is hungry now." actions={['Change category', 'My month']} />
+          <Notif
+            title="₹40 to paytmqr2810…"
+            body="Who is this? Pick a category once and Gullak never asks again."
+            actions={['Pick category', 'Details']}
+          />
+        </div>
+      </article>
+
+      <article className={`${styles.tile} ${styles.span3}`}>
+        <h2 className={styles.h3}>Ask Gullu</h2>
+        <p className={styles.tileText}>Gullu is the chatbot inside Gullak. Ask about your money in plain words.</p>
+        <div className={styles.chat} aria-label="A sample chat with Gullu" role="group">
+          <p className={styles.chatMe}>How much did I spend on food this month?</p>
+          <div className={styles.chatGullu}>
+            <span className={styles.chatAvatar} aria-hidden>
+              <Mascot size={28} />
+            </span>
+            <p>
+              <b>₹4,320</b> on Food so far this month. Swiggy is ₹2,610 of it.
+            </p>
+          </div>
+          <p className={styles.chatMe}>And last month?</p>
+          <div className={styles.chatGullu}>
+            <span className={styles.chatAvatar} aria-hidden>
+              <Mascot size={28} />
+            </span>
+            <p className={styles.typing} aria-label="Gullu is typing">
+              <span />
+              <span />
+              <span />
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <article className={`${styles.tile} ${styles.span3}`}>
+        <h2 className={styles.h3}>Gullak Jars</h2>
+        <p className={styles.tileText}>Save towards something. The pot fills with coins, and sprouts when it’s full.</p>
+        <JarDemo />
+      </article>
+
+      <article className={`${styles.tile} ${styles.span3}`}>
+        <h2 className={styles.h3}>Budgets that fill up</h2>
+        <p className={styles.tileText}>Set a limit per category. Each payment adds a block, so you see it coming.</p>
+        <ul className={styles.budgets}>
+          <Budget name="Shopping" note="₹173 over" value={1.06} over />
+          <Budget name="Food" note="₹1,525 left" value={0.7} />
+          <Budget name="Groceries" note="₹3,222 left" value={0.36} />
+        </ul>
+      </article>
+
+      <article className={`${styles.tile} ${styles.span6} ${styles.tilePrivacy}`}>
+        <h2 className={styles.h3}>Your messages stay yours</h2>
+        <p className={styles.tileText}>Gullak only needs your bank’s SMS. Everything else stays out.</p>
+        <ul className={styles.promises}>
+          <li>
+            <PrivacyIcon kind="chat" />
+            <span className={styles.promiseTitle}>Chats never kept</span>
+            <span className={styles.promiseText}>Personal chats are dropped before they’re stored.</span>
+          </li>
+          <li>
+            <PrivacyIcon kind="key" />
+            <span className={styles.promiseTitle}>No bank login</span>
+            <span className={styles.promiseText}>No bank passwords, no account linking.</span>
+          </li>
+          <li>
+            <PrivacyIcon kind="server" />
+            <span className={styles.promiseTitle}>Our own server</span>
+            <span className={styles.promiseText}>Runs on Gullak’s own server, not an ad network.</span>
+          </li>
+        </ul>
+      </article>
+    </section>
   );
 }
 
